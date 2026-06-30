@@ -570,6 +570,8 @@ model Subscription {
   documentsUsed Int @default(0)
   storageLimit Int
   storageUsed Int @default(0)
+  stripeCustomerId String? @unique
+  stripeSubscriptionId String? @unique
   renewalDate DateTime?
   expiresAt DateTime?
 

@@ -25,9 +25,23 @@ export class AuthService {
       const org = await tx.organization.create({
         data: {
           companyName,
-          currency: 'USD', // Default
-          timezone: 'UTC', // Default
-        },
+          email,
+          currency: 'USD',
+          timezone: 'UTC',
+          status: 'ACTIVE',
+        }
+      });
+
+      // Create free subscription
+      await tx.subscription.create({
+        data: {
+          organizationId: org.id,
+          plan: 'FREE',
+          status: 'ACTIVE',
+          billingCycle: 'MONTHLY',
+          documentLimit: 100,
+          storageLimit: 1000,
+        }
       });
 
       const user = await tx.user.create({
