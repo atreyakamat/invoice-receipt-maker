@@ -1,6 +1,7 @@
 import prisma from '../utils/prisma';
 import argon2 from 'argon2';
 import jwt from 'jsonwebtoken';
+import { EmailService } from './email.service';
 import { v4 as uuidv4 } from 'uuid';
 import { UserRole } from '@prisma/client';
 
@@ -67,8 +68,16 @@ export class AuthService {
       return { user, org };
     });
 
+    // Generate verification token and send email
+    const verificationToken = jwt.sign(
+      { email: result.user.email },
+      JWT_SECRET,
+      { expiresIn: '24h' }
+    );
+    await EmailService.sendVerificationEmail(result.user.email, verificationToken);
+
     return {
-      message: 'Registration successful',
+      message: 'Registration successful. Please verify your email.',
       user: {
         id: result.user.id,
         email: result.user.email,
@@ -91,6 +100,10 @@ export class AuthService {
     const isValid = await argon2.verify(user.passwordHash, password);
     if (!isValid) {
       throw new Error('Invalid credentials');
+    }
+
+    if (!user.emailVerified) {
+      throw { status: 403, message: 'Please verify your email address before logging in' };
     }
 
     const accessToken = this.generateAccessToken(user.id, user.role, user.organizationId);
@@ -169,6 +182,35 @@ export class AuthService {
     } catch (error) {
       throw new Error('Invalid refresh token');
     }
+  }
+
+  static async verifyEmail(token: string) {
+    try {
+      const decoded = jwt.verify(token, JWT_SECRET) as { email: string };
+      const user = await prisma.user.findUnique({ where: { email: decoded.email } });
+      if (!user) throw new Error('User not found');
+      
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { emailVerified: true },
+      });
+      return true;
+    } catch (err) {
+      throw { status: 400, message: 'Invalid or expired verification token' };
+    }
+  }
+
+  static async resendVerification(email: string) {
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user) throw new Error('User not found');
+    if (user.emailVerified) throw { status: 400, message: 'Email already verified' };
+
+    const verificationToken = jwt.sign(
+      { email: user.email },
+      JWT_SECRET,
+      { expiresIn: '24h' }
+    );
+    await EmailService.sendVerificationEmail(user.email, verificationToken);
   }
 
   private static generateAccessToken(userId: string, role: string, organizationId: string) {

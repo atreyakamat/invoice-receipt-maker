@@ -13,6 +13,8 @@ import subscriptionRoutes from './routes/subscription.routes';
 import auditLogRoutes from './routes/auditlog.routes';
 import dashboardRoutes from './routes/dashboard.routes';
 import integrationRoutes from './routes/integration.routes';
+import inboundRoutes from './routes/inbound.routes';
+import adminRoutes from './routes/admin.routes';
 import { startWorkers } from './workers';
 
 const app = express();
@@ -39,6 +41,8 @@ app.use('/api/v1/subscription', subscriptionRoutes);
 app.use('/api/v1/audit-logs', auditLogRoutes);
 app.use('/api/v1/dashboard', dashboardRoutes);
 app.use('/api/v1/integrations', integrationRoutes);
+app.use('/api/v1/inbound', inboundRoutes);
+app.use('/api/v1/admin', adminRoutes);
 
 // Error handling middleware
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {

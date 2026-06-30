@@ -93,4 +93,24 @@ export class AuthController {
       next(error);
     }
   }
+
+  static async verifyEmail(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { token } = req.body;
+      await AuthService.verifyEmail(token);
+      res.status(200).json({ message: 'Email verified successfully' });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async resendVerification(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { email } = req.body;
+      await AuthService.resendVerification(email);
+      res.status(200).json({ message: 'Verification email sent' });
+    } catch (error) {
+      next(error);
+    }
+  }
 }

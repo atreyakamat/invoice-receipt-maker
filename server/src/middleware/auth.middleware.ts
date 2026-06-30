@@ -20,3 +20,13 @@ export const requireAuth = (req: Request, res: Response, next: NextFunction) => 
     return res.status(401).json({ message: 'Unauthorized: Invalid token' });
   }
 };
+
+export const requireRole = (roles: string[]) => {
+  return (req: Request, res: Response, next: NextFunction) => {
+    const userRole = (req as any).user?.role;
+    if (!userRole || !roles.includes(userRole)) {
+      return res.status(403).json({ message: 'Forbidden: Insufficient role' });
+    }
+    next();
+  };
+};
