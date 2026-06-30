@@ -1,0 +1,43 @@
+version: '3.8'
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: invoice-receipt-maker-api
+    restart: always
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=postgresql://admin:adminpassword@postgres:5432/invoice_db?schema=public
+      - REDIS_URL=redis://redis:6379
+      - JWT_SECRET=${JWT_SECRET}
+      - REFRESH_SECRET=${REFRESH_SECRET}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+    ports:
+      - "3000:3000"
+    depends_on:
+      - postgres
+      - redis
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: invoice-receipt-maker-postgres-prod
+    restart: always
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: adminpassword
+      POSTGRES_DB: invoice_db
+    volumes:
+      - postgres-data-prod:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    container_name: invoice-receipt-maker-redis-prod
+    restart: always
+    volumes:
+      - redis-data-prod:/data
+
+volumes:
+  postgres-data-prod:
+  redis-data-prod:
