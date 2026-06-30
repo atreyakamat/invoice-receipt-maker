@@ -88,4 +88,70 @@ export class InvoiceController {
       next(error);
     }
   }
+
+  static async deleteInvoice(req: Request, res: Response, next: NextFunction) {
+    try {
+      const orgId = (req as any).user.organizationId;
+      const { id } = req.params;
+
+      const invoice = await prisma.invoice.findFirst({
+        where: { id, organizationId: orgId, deletedAt: null },
+      });
+
+      if (!invoice) {
+        return res.status(404).json({ message: 'Invoice not found' });
+      }
+
+      await prisma.invoice.update({
+        where: { id },
+        data: { deletedAt: new Date() },
+      });
+
+      res.status(200).json({ message: 'Invoice deleted successfully' });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async validateInvoice(req: Request, res: Response, next: NextFunction) {
+    try {
+      const orgId = (req as any).user.organizationId;
+      const { id } = req.params;
+      const { status, finalData, comments } = req.body;
+
+      const invoice = await prisma.invoice.findFirst({
+        where: { id, organizationId: orgId, deletedAt: null },
+      });
+
+      if (!invoice) {
+        return res.status(404).json({ message: 'Invoice not found' });
+      }
+
+      await prisma.$transaction(async (tx) => {
+        // Update validation report
+        await tx.validationReport.update({
+          where: { invoiceId: id },
+          data: {
+            status,
+            comments,
+            approvedBy: (req as any).user.userId,
+            reviewedAt: new Date()
+          }
+        });
+
+        // Update invoice status and final details
+        await tx.invoice.update({
+          where: { id },
+          data: {
+            status: status === 'APPROVED' ? 'COMPLETED' : 'REJECTED',
+            ...finalData // vendorId, subtotal, tax, total, etc.
+          }
+        });
+      });
+
+      res.status(200).json({ message: `Invoice validation ${status}` });
+    } catch (error) {
+      next(error);
+    }
+  }
 }

@@ -35,7 +35,7 @@ apiPrivate.interceptors.response.use(
       prevRequest.sent = true;
       try {
         const refreshToken = localStorage.getItem('refreshToken');
-        const response = await apiClient.post('/auth/refresh-token', { token: refreshToken });
+        const response = await apiClient.post('/auth/refresh', { refreshToken });
         const { accessToken, refreshToken: newRefreshToken } = response.data;
         
         localStorage.setItem('accessToken', accessToken);

@@ -11,6 +11,7 @@ import categoryRoutes from './routes/category.routes';
 import tagRoutes from './routes/tag.routes';
 import subscriptionRoutes from './routes/subscription.routes';
 import auditLogRoutes from './routes/auditlog.routes';
+import dashboardRoutes from './routes/dashboard.routes';
 import { startWorkers } from './workers';
 
 const app = express();
@@ -34,6 +35,7 @@ app.use('/api/v1/categories', categoryRoutes);
 app.use('/api/v1/tags', tagRoutes);
 app.use('/api/v1/subscription', subscriptionRoutes);
 app.use('/api/v1/audit-logs', auditLogRoutes);
+app.use('/api/v1/dashboard', dashboardRoutes);
 
 // Error handling middleware
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {

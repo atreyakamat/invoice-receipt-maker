@@ -10,5 +10,7 @@ router.use(requireAuth);
 router.post('/upload', uploadMiddleware.single('invoice'), InvoiceController.uploadInvoice);
 router.get('/', InvoiceController.getInvoices);
 router.get('/:id', InvoiceController.getInvoiceById);
+router.delete('/:id', InvoiceController.deleteInvoice);
+router.post('/:id/validate', InvoiceController.validateInvoice);
 
 export default router;

@@ -1,56 +1,69 @@
 import React from 'react';
-import { Card, CardContent, Typography, Box } from '@mui/material';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-
-const data = [
-  { name: 'Jan', spend: 4000 },
-  { name: 'Feb', spend: 3000 },
-  { name: 'Mar', spend: 2000 },
-  { name: 'Apr', spend: 2780 },
-  { name: 'May', spend: 1890 },
-  { name: 'Jun', spend: 2390 },
-];
+import { Box, Typography, Card, CardContent, Grid, CircularProgress, Alert } from '@mui/material';
+import { useQuery } from '@tanstack/react-query';
+import { apiPrivate } from '../api/axios';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 const Dashboard: React.FC = () => {
+  const { data, isLoading, error } = useQuery({
+    queryKey: ['dashboardAnalytics'],
+    queryFn: async () => {
+      const res = await apiPrivate.get('/dashboard/analytics');
+      return res.data;
+    }
+  });
+
+  if (isLoading) return <CircularProgress />;
+  if (error) return <Alert severity="error">Failed to load dashboard data.</Alert>;
+
   return (
     <Box>
       <Typography variant="h4" sx={{ mb: 4 }}>Dashboard</Typography>
       
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' }, gap: 3, mb: 4 }}>
-        {[
-          { title: 'Total Spend', value: '₹4,56,000' },
-          { title: 'Invoices Processed', value: '1,286' },
-          { title: 'AI Accuracy', value: '98.2%' },
-          { title: 'Avg Process Time', value: '7.2 sec' },
-        ].map((kpi) => (
-          <Box key={kpi.title}>
-            <Card elevation={2}>
-              <CardContent>
-                <Typography color="textSecondary" gutterBottom>
-                  {kpi.title}
-                </Typography>
-                <Typography variant="h5">
-                  {kpi.value}
-                </Typography>
-              </CardContent>
-            </Card>
-          </Box>
-        ))}
-      </Box>
+      <Grid container spacing={3} sx={{ mb: 4 }}>
+        <Grid size={{ xs: 12, md: 4 }}>
+          <Card>
+            <CardContent>
+              <Typography color="textSecondary" gutterBottom>Total Spend</Typography>
+              <Typography variant="h5">₹{data?.totalSpend || 0}</Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+        <Grid size={{ xs: 12, md: 4 }}>
+          <Card>
+            <CardContent>
+              <Typography color="textSecondary" gutterBottom>Invoices Processed</Typography>
+              <Typography variant="h5">{data?.invoicesProcessed || 0}</Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+        <Grid size={{ xs: 12, md: 4 }}>
+          <Card>
+            <CardContent>
+              <Typography color="textSecondary" gutterBottom>AI Confidence Avg</Typography>
+              <Typography variant="h5">{data?.avgConfidence || 0}%</Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+      </Grid>
 
-      <Card elevation={2}>
+      <Card>
         <CardContent>
-          <Typography variant="h6" sx={{ mb: 2 }}>Monthly Spending</Typography>
+          <Typography variant="h6" sx={{ mb: 2 }}>Monthly Spend</Typography>
           <Box sx={{ height: 300 }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={data}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" />
-                <YAxis />
-                <Tooltip />
-                <Line type="monotone" dataKey="spend" stroke="#1976d2" strokeWidth={2} />
-              </LineChart>
-            </ResponsiveContainer>
+            {data?.chartData && data.chartData.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={data.chartData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="name" />
+                  <YAxis />
+                  <Tooltip />
+                  <Bar dataKey="spend" fill="#8884d8" />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <Typography color="textSecondary">No data available for charts.</Typography>
+            )}
           </Box>
         </CardContent>
       </Card>

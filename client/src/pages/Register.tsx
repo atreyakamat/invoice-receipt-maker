@@ -6,41 +6,68 @@ import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 
-const loginSchema = z.object({
+const registerSchema = z.object({
+  firstName: z.string().min(1, 'First name is required'),
+  lastName: z.string().min(1, 'Last name is required'),
   email: z.string().email('Invalid email address'),
-  password: z.string().min(1, 'Password is required'),
+  password: z.string().min(12, 'Password must be at least 12 characters'),
+  companyName: z.string().min(1, 'Company name is required'),
 });
 
-type LoginFormData = z.infer<typeof loginSchema>;
+type RegisterFormData = z.infer<typeof registerSchema>;
 
-const Login: React.FC = () => {
+const Register: React.FC = () => {
   const [error, setError] = useState('');
   const navigate = useNavigate();
-  const { login } = useAuth();
-
-  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<LoginFormData>({
-    resolver: zodResolver(loginSchema)
+  const { register: authRegister } = useAuth();
+  
+  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<RegisterFormData>({
+    resolver: zodResolver(registerSchema)
   });
 
-  const onSubmit = async (data: LoginFormData) => {
+  const onSubmit = async (data: RegisterFormData) => {
     try {
       setError('');
-      await login(data);
+      await authRegister(data);
       navigate('/');
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Login failed');
+      setError(err.response?.data?.message || 'Registration failed');
     }
   };
 
   return (
     <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', bgcolor: '#f4f6f8', py: 4 }}>
-      <Card sx={{ maxWidth: 400, width: '100%', p: 2 }}>
+      <Card sx={{ maxWidth: 450, width: '100%', p: 2 }}>
         <CardContent>
           <Typography variant="h5" sx={{ mb: 3, textAlign: 'center' }}>
-            Login
+            Create an Account
           </Typography>
           {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
           <form onSubmit={handleSubmit(onSubmit)}>
+            <TextField
+              label="First Name"
+              fullWidth
+              margin="normal"
+              {...register('firstName')}
+              error={!!errors.firstName}
+              helperText={errors.firstName?.message}
+            />
+            <TextField
+              label="Last Name"
+              fullWidth
+              margin="normal"
+              {...register('lastName')}
+              error={!!errors.lastName}
+              helperText={errors.lastName?.message}
+            />
+            <TextField
+              label="Company / Organization Name"
+              fullWidth
+              margin="normal"
+              {...register('companyName')}
+              error={!!errors.companyName}
+              helperText={errors.companyName?.message}
+            />
             <TextField
               label="Email"
               type="email"
@@ -66,12 +93,12 @@ const Login: React.FC = () => {
               sx={{ mt: 3, mb: 2 }}
               disabled={isSubmitting}
             >
-              {isSubmitting ? 'Signing In...' : 'Sign In'}
+              {isSubmitting ? 'Registering...' : 'Register'}
             </Button>
             <Typography variant="body2" align="center">
-              Don't have an account?{' '}
-              <MuiLink component={Link} to="/register">
-                Register
+              Already have an account?{' '}
+              <MuiLink component={Link} to="/login">
+                Sign In
               </MuiLink>
             </Typography>
           </form>
@@ -81,4 +108,4 @@ const Login: React.FC = () => {
   );
 };
 
-export default Login;
+export default Register;
