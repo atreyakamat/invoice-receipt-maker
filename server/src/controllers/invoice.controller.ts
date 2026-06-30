@@ -149,6 +149,17 @@ export class InvoiceController {
         });
       });
 
+      if (status === 'APPROVED') {
+        const updatedInvoice = await prisma.invoice.findFirst({ where: { id }, include: { vendor: true } });
+        if (updatedInvoice) {
+          import('../services/google.service').then(({ GoogleService }) => {
+            GoogleService.pushInvoiceToSheet(orgId, updatedInvoice).catch(err => {
+              console.error('Failed to push to Google Sheets:', err);
+            });
+          });
+        }
+      }
+
       res.status(200).json({ message: `Invoice validation ${status}` });
     } catch (error) {
       next(error);
