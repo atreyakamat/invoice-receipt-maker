@@ -1,0 +1,17 @@
+{
+  "name": "invoice-receipt-maker",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "server",
+    "client"
+  ],
+  "scripts": {
+    "dev:server": "npm run dev -w server",
+    "dev:client": "npm run dev -w client",
+    "dev": "npm run dev:server & npm run dev:client",
+    "build:server": "npm run build -w server",
+    "build:client": "npm run build -w client",
+    "build": "npm run build:server && npm run build:client"
+  }
+}
