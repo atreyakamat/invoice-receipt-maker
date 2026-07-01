@@ -1,5 +1,5 @@
 import React from 'react';
-import { Box, Typography, Grid, Paper, CircularProgress, Alert } from '@mui/material';
+import { Box, Typography, Grid, Paper, CircularProgress, Alert, Card, CardContent } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
 import { apiPrivate } from '../../api/axios';
 
@@ -18,32 +18,35 @@ const AdminDashboard: React.FC = () => {
 
   return (
     <Box>
-      <Typography variant="h4" mb={4}>System Overview</Typography>
-      
+      <Typography variant="h5" sx={{ mb: 3, mt: 4 }}>System Status</Typography>
       <Grid container spacing={3}>
-        <Grid item xs={12} sm={4}>
-          <Paper sx={{ p: 3, textAlign: 'center' }}>
-            <Typography variant="h6" color="text.secondary">Total Organizations</Typography>
-            <Typography variant="h3">{data?.metrics.totalOrganizations}</Typography>
-          </Paper>
+        <Grid size={{ xs: 12, md: 4 }}>
+          <Card>
+            <CardContent>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                <Typography variant="h6" color="text.secondary">Total Organizations</Typography>
+              </Box>
+              <Typography variant="h3">{data?.metrics.totalOrganizations}</Typography>
+            </CardContent>
+          </Card>
         </Grid>
-        <Grid item xs={12} sm={4}>
+        <Grid size={{ xs: 12, sm: 4 }}>
           <Paper sx={{ p: 3, textAlign: 'center' }}>
             <Typography variant="h6" color="text.secondary">Total Users</Typography>
             <Typography variant="h3">{data?.metrics.totalUsers}</Typography>
           </Paper>
         </Grid>
-        <Grid item xs={12} sm={4}>
+        <Grid size={{ xs: 12, sm: 4 }}>
           <Paper sx={{ p: 3, textAlign: 'center' }}>
             <Typography variant="h6" color="text.secondary">Invoices Processed</Typography>
             <Typography variant="h3">{data?.metrics.totalInvoices}</Typography>
           </Paper>
         </Grid>
 
-        <Grid item xs={12}>
-          <Typography variant="h5" mb={2} mt={2}>System Health</Typography>
+        <Grid size={{ xs: 12 }}>
+          <Typography variant="h5" sx={{ mb: 2, mt: 2 }}>System Health</Typography>
           <Paper sx={{ p: 3 }}>
-            <Box display="flex" gap={4}>
+            <Box sx={{ display: 'flex', gap: 4 }}>
               <Box>
                 <Typography variant="subtitle2" color="text.secondary">Database</Typography>
                 <Typography color={data?.system.database === 'OK' ? 'success.main' : 'error'}>

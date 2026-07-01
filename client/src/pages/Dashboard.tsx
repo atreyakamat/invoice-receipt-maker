@@ -3,7 +3,6 @@ import { Box, Grid, Typography, Card, CardContent, CircularProgress } from '@mui
 import { useQuery } from '@tanstack/react-query';
 import { apiPrivate } from '../api/axios';
 import { motion } from 'framer-motion';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import ReceiptIcon from '@mui/icons-material/Receipt';
 import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
 import PendingActionsIcon from '@mui/icons-material/PendingActions';
@@ -19,7 +18,7 @@ const container = {
 
 const item = {
   hidden: { opacity: 0, y: 20 },
-  show: { opacity: 1, y: 0, transition: { type: 'spring', stiffness: 300, damping: 24 } }
+  show: { opacity: 1, y: 0, transition: { type: 'spring' as any, stiffness: 300, damping: 24 } }
 };
 
 const Dashboard: React.FC = () => {
@@ -42,14 +41,14 @@ const Dashboard: React.FC = () => {
 
   return (
     <Box component={motion.div} variants={container} initial="hidden" animate="show">
-      <Typography variant="h3" mb={1}>Welcome back!</Typography>
-      <Typography variant="body1" color="text.secondary" mb={4}>
+      <Typography variant="h3" sx={{ mb: 1 }}>Welcome back!</Typography>
+      <Typography variant="body1" color="text.secondary" sx={{ mb: 4 }}>
         Here is what's happening with your invoices today.
       </Typography>
 
-      <Grid container spacing={3} mb={4}>
+      <Grid container spacing={3} sx={{ mb: 4 }}>
         {statCards.map((stat, i) => (
-          <Grid item xs={12} sm={6} md={3} key={i}>
+          <Grid size={{ xs: 12, sm: 6, md: 3 }} key={i}>
             <motion.div variants={item}>
               <Card sx={{ height: '100%', display: 'flex', alignItems: 'center', p: 1 }}>
                 <CardContent sx={{ flexGrow: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -71,13 +70,6 @@ const Dashboard: React.FC = () => {
         ))}
       </Grid>
 
-              </ResponsiveContainer>
-            ) : (
-              <Typography color="textSecondary">No data available for charts.</Typography>
-            )}
-          </Box>
-        </CardContent>
-      </Card>
     </Box>
   );
 };

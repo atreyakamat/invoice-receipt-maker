@@ -1,6 +1,6 @@
 import React from 'react';
-import { Box, Typography, Paper } from '@mui/material';
-import { DataGrid, GridColDef } from '@mui/x-data-grid';
+import { Box, Typography, Card } from '@mui/material';
+import { DataGrid, type GridColDef } from '@mui/x-data-grid';
 import { useQuery } from '@tanstack/react-query';
 import { apiPrivate } from '../../api/axios';
 
@@ -18,13 +18,19 @@ const Organizations: React.FC = () => {
     { field: 'companyName', headerName: 'Company Name', width: 250 },
     { field: 'email', headerName: 'Contact Email', width: 200 },
     { field: 'status', headerName: 'Status', width: 130 },
-    { field: 'createdAt', headerName: 'Created At', width: 200, valueFormatter: (params) => new Date(params.value).toLocaleDateString() },
+    { field: 'createdAt', headerName: 'Created At', width: 200, valueFormatter: (params: any) => new Date(params.value).toLocaleDateString() },
+    { 
+      field: 'plan', 
+      headerName: 'Plan', 
+      width: 150,
+      valueGetter: (params: any) => params.row?.subscription?.plan || 'Unknown'
+    },
   ];
 
   return (
-    <Box sx={{ height: 600, width: '100%' }}>
-      <Typography variant="h4" mb={3}>All Organizations</Typography>
-      <Paper sx={{ height: 500, width: '100%' }}>
+    <Box>
+      <Typography variant="h4" sx={{ mb: 4 }}>Organizations</Typography>
+      <Card sx={{ height: 600, width: '100%', p: 0 }}>
         <DataGrid
           rows={orgs || []}
           columns={columns}
@@ -35,7 +41,7 @@ const Organizations: React.FC = () => {
           pageSizeOptions={[5, 10, 25]}
           disableRowSelectionOnClick
         />
-      </Paper>
+      </Card>
     </Box>
   );
 };

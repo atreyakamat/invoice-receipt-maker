@@ -1,15 +1,9 @@
-import { Worker } from 'bullmq';
-import IORedis from 'ioredis';
 import prisma from '../utils/prisma';
 import { InvoiceStatus, OCRStatus } from '@prisma/client';
-import { ocrQueue } from '../jobs/upload.queue'; // Re-use the existing queue definition
+import { ocrQueue } from '../jobs/upload.queue';
 
-const redisConnection = new IORedis(process.env.REDIS_URL || 'redis://localhost:6379', {
-  maxRetriesPerRequest: null
-});
-
-export const uploadWorker = new Worker('invoice-upload-queue', async (job) => {
-  const { invoiceId } = job.data;
+export const processUploadJob = async (data: { invoiceId: string }) => {
+  const { invoiceId } = data;
   console.log(`Processing upload job for invoice: ${invoiceId}`);
 
   try {
@@ -25,10 +19,7 @@ export const uploadWorker = new Worker('invoice-upload-queue', async (job) => {
     });
 
     // 2. Enqueue for actual OCR processing
-    await ocrQueue.add('process-ocr', { invoiceId }, {
-      attempts: 3,
-      backoff: { type: 'exponential', delay: 2000 },
-    });
+    await ocrQueue.add('process-ocr', { invoiceId });
 
   } catch (error) {
     console.error(`Upload worker failed for ${invoiceId}:`, error);
@@ -38,4 +29,7 @@ export const uploadWorker = new Worker('invoice-upload-queue', async (job) => {
     });
     throw error;
   }
-}, { connection: redisConnection as any });
+};
+
+// Dummy export for backwards compatibility in index.ts
+export const uploadWorker = { name: 'Upload (Sync Worker)', close: async () => {} };

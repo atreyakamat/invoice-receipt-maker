@@ -1,8 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Box, Typography, CircularProgress, Alert, Button } from '@mui/material';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import axios from 'axios';
-import { apiPublic } from '../api/axios';
+import { apiPrivate as api } from '../api/axios';
 
 const VerifyEmail: React.FC = () => {
   const [searchParams] = useSearchParams();
@@ -21,7 +20,7 @@ const VerifyEmail: React.FC = () => {
 
     const verify = async () => {
       try {
-        await apiPublic.post('/auth/verify-email', { token });
+        await api.post('/auth/verify-email', { token });
         setStatus('success');
       } catch (err: any) {
         setStatus('error');

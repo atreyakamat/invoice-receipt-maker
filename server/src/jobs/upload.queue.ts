@@ -1,33 +1,36 @@
-import { Queue, Worker, QueueEvents } from 'bullmq';
-import IORedis from 'ioredis';
+import { processUploadJob } from '../workers/upload.worker';
+import { processOcrJob } from '../workers/ocr.worker';
+import { processAiJob } from '../workers/ai.worker';
+import { EventEmitter } from 'events';
 
-const redisConnection = new IORedis(process.env.REDIS_URL || 'redis://localhost:6379', {
-  maxRetriesPerRequest: null
-});
+export const queueEvents = new EventEmitter();
 
-export const uploadQueue = new Queue('invoice-upload-queue', {
-  connection: redisConnection as any,
-});
-
-export const ocrQueue = new Queue('ocr-processing-queue', {
-  connection: redisConnection as any,
-});
-
-export const addInvoiceToQueue = async (invoiceId: string) => {
-  await uploadQueue.add('process-invoice', { invoiceId }, {
-    attempts: 3,
-    backoff: { type: 'exponential', delay: 1000 },
-  });
+// Mock BullMQ queues for synchronous/local processing without Redis
+export const uploadQueue = {
+  add: async (name: string, data: { invoiceId: string }) => {
+    // Run in background without blocking the request
+    setTimeout(() => {
+      processUploadJob(data).catch(console.error);
+    }, 0);
+  }
 };
 
-export const queueEvents = new QueueEvents('invoice-upload-queue', {
-  connection: redisConnection as any,
-});
+export const ocrQueue = {
+  add: async (name: string, data: { invoiceId: string }) => {
+    setTimeout(() => {
+      processOcrJob(data).catch(console.error);
+    }, 0);
+  }
+};
 
-queueEvents.on('completed', ({ jobId, returnvalue }) => {
-  console.log(`Job ${jobId} completed successfully`);
-});
+export const aiQueue = {
+  add: async (name: string, data: { invoiceId: string }) => {
+    setTimeout(() => {
+      processAiJob(data).catch(console.error);
+    }, 0);
+  }
+};
 
-queueEvents.on('failed', ({ jobId, failedReason }) => {
-  console.error(`Job ${jobId} failed with reason: ${failedReason}`);
-});
+export const addInvoiceToQueue = async (invoiceId: string) => {
+  await uploadQueue.add('process-invoice', { invoiceId });
+};

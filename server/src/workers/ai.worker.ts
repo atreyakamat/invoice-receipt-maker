@@ -1,22 +1,16 @@
-import { Worker } from 'bullmq';
-import IORedis from 'ioredis';
 import prisma from '../utils/prisma';
 import { InvoiceStatus, AIJobStatus, ValidationStatus } from '@prisma/client';
 import OpenAI from 'openai';
 
-const redisConnection = new IORedis(process.env.REDIS_URL || 'redis://localhost:6379', {
-  maxRetriesPerRequest: null
-});
-
 // Initialize OpenRouter Client
-const openRouterApiKey = process.env.OPENROUTER_API_KEY || 'fake-key';
+const openRouterApiKey = process.env.OPENROUTER_API_KEY || process.env.NVIDIA_API_KEY || 'fake-key';
 const openai = new OpenAI({
   baseURL: 'https://openrouter.ai/api/v1',
   apiKey: openRouterApiKey,
 });
 
-export const aiWorker = new Worker('ai-processing-queue', async (job) => {
-  const { invoiceId } = job.data;
+export const processAiJob = async (data: { invoiceId: string }) => {
+  const { invoiceId } = data;
   console.log(`Processing AI extraction for invoice: ${invoiceId}`);
 
   try {
@@ -28,7 +22,6 @@ export const aiWorker = new Worker('ai-processing-queue', async (job) => {
     const ocrResult = await prisma.oCRResult.findUnique({ where: { invoiceId } });
     if (!ocrResult) throw new Error('OCR Result not found');
 
-    // Here we would call Gemini. For safety without real key, we'll simulate if fake-key
     let extractedData;
     if (openRouterApiKey === 'fake-key') {
       await new Promise(resolve => setTimeout(resolve, 2000));
@@ -116,4 +109,6 @@ export const aiWorker = new Worker('ai-processing-queue', async (job) => {
     });
     throw error;
   }
-}, { connection: redisConnection as any });
+};
+
+export const aiWorker = { name: 'AI (Sync Worker)', close: async () => {} };

@@ -1,18 +1,11 @@
-import { Queue, Worker } from 'bullmq';
-import IORedis from 'ioredis';
 import prisma from '../utils/prisma';
 import { InvoiceStatus, OCRStatus, AIProvider, AIJobStatus } from '@prisma/client';
 import Tesseract from 'tesseract.js';
 import path from 'path';
+import { aiQueue } from '../jobs/upload.queue';
 
-const redisConnection = new IORedis(process.env.REDIS_URL || 'redis://localhost:6379', {
-  maxRetriesPerRequest: null
-});
-
-export const aiQueue = new Queue('ai-processing-queue', { connection: redisConnection as any });
-
-export const ocrWorker = new Worker('ocr-processing-queue', async (job) => {
-  const { invoiceId } = job.data;
+export const processOcrJob = async (data: { invoiceId: string }) => {
+  const { invoiceId } = data;
   console.log(`Processing OCR for invoice: ${invoiceId}`);
 
   try {
@@ -23,9 +16,6 @@ export const ocrWorker = new Worker('ocr-processing-queue', async (job) => {
     let confidence = 0;
 
     if (invoice.storageUrl.endsWith('.pdf')) {
-      // Basic fallback since tesseract works best on images. 
-      // For PDFs, we would ideally convert to images first.
-      // For now, we will simulate or just warn for PDF.
       rawText = 'PDF extraction requires image conversion first. Assuming simulated text.';
       confidence = 90.0;
     } else {
@@ -81,4 +71,6 @@ export const ocrWorker = new Worker('ocr-processing-queue', async (job) => {
     });
     throw error;
   }
-}, { connection: redisConnection as any });
+};
+
+export const ocrWorker = { name: 'OCR (Sync Worker)', close: async () => {} };

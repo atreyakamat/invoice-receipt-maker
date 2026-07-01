@@ -1,30 +1,26 @@
 import React, { useState } from 'react';
-import { Box, Typography, Button, Alert, Snackbar } from '@mui/material';
-import { DataGrid, type GridColDef } from '@mui/x-data-grid';
+import { Box, Typography, Button, Card } from '@mui/material';
+import { DataGrid, type GridColDef, type GridRenderCellParams } from '@mui/x-data-grid';
 import { useNavigate } from 'react-router-dom';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { apiPrivate } from '../api/axios';
+import { motion } from 'framer-motion';
+import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 
 const Invoices: React.FC = () => {
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
 
-  const { data: invoices, isLoading } = useQuery({
-    queryKey: ['invoices'],
+  const [page, setPage] = useState(0);
+  const [pageSize, setPageSize] = useState(10);
+
+  const { data, isLoading } = useQuery({
+    queryKey: ['invoices', page, pageSize],
     queryFn: async () => {
-      const res = await apiPrivate.get('/invoices');
-      return res.data;
-    }
-  });
-
-  const uploadMutation = useMutation({
       const response = await apiPrivate.get('/invoices', {
         params: { skip: page * pageSize, take: pageSize },
       });
       return response.data;
-    },
+    }
   });
 
   const columns: GridColDef[] = [
@@ -33,26 +29,26 @@ const Invoices: React.FC = () => {
       field: 'vendor', 
       headerName: 'Vendor', 
       width: 200,
-      valueGetter: (params) => params.row.vendor?.name || 'Unknown'
+      valueGetter: (params: any) => params.row?.vendor?.name || 'Unknown'
     },
     { 
       field: 'invoiceDate', 
       headerName: 'Date', 
       width: 150,
-      valueFormatter: (params) => new Date(params.value).toLocaleDateString()
+      valueFormatter: (params: any) => params.value ? new Date(params.value).toLocaleDateString() : ''
     },
     { 
       field: 'total', 
       headerName: 'Total', 
       width: 130,
-      valueFormatter: (params) => `$${params.value.toFixed(2)}`
+      valueFormatter: (params: any) => `$${(params.value || 0).toFixed(2)}`
     },
     { field: 'status', headerName: 'Status', width: 130 },
     { 
       field: 'confidence', 
       headerName: 'OCR Confidence', 
       width: 130,
-      valueFormatter: (params) => `${(params.value * 100).toFixed(1)}%`
+      valueFormatter: (params: any) => `${((params.value || 0) * 100).toFixed(1)}%`
     },
     {
       field: 'actions',

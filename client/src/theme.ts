@@ -1,4 +1,5 @@
 import { createTheme, alpha } from '@mui/material/styles';
+import type {} from '@mui/x-data-grid/themeAugmentation';
 
 const googleBlue = '#1a73e8';
 const backgroundDefault = '#f8f9fa'; // Google-like off-white
