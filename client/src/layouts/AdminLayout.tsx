@@ -20,6 +20,7 @@ import BusinessIcon from '@mui/icons-material/Business';
 import PeopleIcon from '@mui/icons-material/People';
 import ExitToAppIcon from '@mui/icons-material/ExitToApp';
 import { useAuth } from '../contexts/AuthContext';
+import PageTransition from '../components/PageTransition';
 
 const drawerWidth = 240;
 
@@ -143,10 +144,11 @@ const AdminLayout: React.FC = () => {
       </Box>
       <Box
         component="main"
-        sx={{ flexGrow: 1, p: 3, width: { sm: `calc(100% - ${drawerWidth}px)` } }}
+        sx={{ flexGrow: 1, width: { sm: `calc(100% - ${drawerWidth}px)` }, minHeight: '100vh', pt: 8 }}
       >
-        <Toolbar />
-        <Outlet />
+        <PageTransition>
+          <Outlet />
+        </PageTransition>
       </Box>
     </Box>
   );

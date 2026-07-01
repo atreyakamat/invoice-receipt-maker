@@ -6,6 +6,7 @@ import BarChartIcon from '@mui/icons-material/BarChart';
 import SettingsIcon from '@mui/icons-material/Settings';
 import StorefrontIcon from '@mui/icons-material/Storefront';
 import { useNavigate, Outlet, useLocation } from 'react-router-dom';
+import PageTransition from './PageTransition';
 
 const drawerWidth = 240;
 
@@ -57,9 +58,13 @@ const Layout: React.FC = () => {
           <Divider />
         </Box>
       </Drawer>
-      <Box component="main" sx={{ flexGrow: 1, p: 3, backgroundColor: 'background.default', minHeight: '100vh' }}>
-        <Toolbar />
-        <Outlet />
+      <Box
+        component="main"
+        sx={{ flexGrow: 1, width: { sm: `calc(100% - ${drawerWidth}px)` }, minHeight: '100vh', pt: 8 }}
+      >
+        <PageTransition>
+          <Outlet />
+        </PageTransition>
       </Box>
     </Box>
   );

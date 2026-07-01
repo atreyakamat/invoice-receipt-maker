@@ -20,81 +20,107 @@ const Invoices: React.FC = () => {
   });
 
   const uploadMutation = useMutation({
-    mutationFn: async (file: File) => {
-      const formData = new FormData();
-      formData.append('invoice', file);
-      const res = await apiPrivate.post('/invoices/upload', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
+      const response = await apiPrivate.get('/invoices', {
+        params: { skip: page * pageSize, take: pageSize },
       });
-      return res.data;
+      return response.data;
     },
-    onSuccess: () => {
-      setSuccess('Invoice uploaded successfully');
-      queryClient.invalidateQueries({ queryKey: ['invoices'] });
-    },
-    onError: (err: any) => {
-      setError(err.response?.data?.message || 'Failed to upload invoice');
-    }
   });
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      uploadMutation.mutate(e.target.files[0]);
-    }
-    // reset input
-    e.target.value = '';
-  };
-
   const columns: GridColDef[] = [
-    { field: 'invoiceNumber', headerName: 'Invoice #', width: 200 },
-    { field: 'vendor', headerName: 'Vendor', width: 200, valueGetter: (_params, row) => row.vendor?.name || 'Unknown' },
-    { field: 'total', headerName: 'Amount', width: 130 },
+    { field: 'invoiceNumber', headerName: 'Invoice Number', width: 180 },
+    { 
+      field: 'vendor', 
+      headerName: 'Vendor', 
+      width: 200,
+      valueGetter: (params) => params.row.vendor?.name || 'Unknown'
+    },
+    { 
+      field: 'invoiceDate', 
+      headerName: 'Date', 
+      width: 150,
+      valueFormatter: (params) => new Date(params.value).toLocaleDateString()
+    },
+    { 
+      field: 'total', 
+      headerName: 'Total', 
+      width: 130,
+      valueFormatter: (params) => `$${params.value.toFixed(2)}`
+    },
     { field: 'status', headerName: 'Status', width: 130 },
-    { field: 'confidence', headerName: 'Confidence', width: 120 },
-    { field: 'invoiceDate', headerName: 'Date', width: 150, valueFormatter: (value) => new Date(value).toLocaleDateString() },
+    { 
+      field: 'confidence', 
+      headerName: 'OCR Confidence', 
+      width: 130,
+      valueFormatter: (params) => `${(params.value * 100).toFixed(1)}%`
+    },
     {
       field: 'actions',
       headerName: 'Actions',
       width: 150,
-      renderCell: (params) => (
-        <Button variant="outlined" size="small" color="primary" onClick={() => navigate(`/invoices/${params.row.id}/validate`)}>
+      renderCell: (params: GridRenderCellParams) => (
+        <Button
+          variant="outlined"
+          size="small"
+          onClick={() => navigate(`/invoices/${params.row.id}/validate`)}
+        >
           Review
         </Button>
-      )
-    }
+      ),
+    },
   ];
 
   return (
-    <Box sx={{ height: 600, width: '100%' }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
-        <Typography variant="h4">Invoices</Typography>
-        <Button variant="contained" component="label" disabled={uploadMutation.isPending}>
-          {uploadMutation.isPending ? 'Uploading...' : 'Upload Invoice'}
-          <input type="file" hidden accept="image/*,application/pdf" onChange={handleFileUpload} />
+    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
+        <Typography variant="h3">
+          Invoices
+        </Typography>
+        <Button
+          variant="contained"
+          startIcon={<CloudUploadIcon />}
+          onClick={() => {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = 'application/pdf,image/jpeg,image/png';
+            input.multiple = true;
+            input.onchange = async (e: any) => {
+              const files = e.target.files;
+              if (files.length > 0) {
+                const formData = new FormData();
+                for (let i = 0; i < files.length; i++) {
+                  formData.append('documents', files[i]);
+                }
+                await apiPrivate.post('/invoices/upload', formData, {
+                  headers: { 'Content-Type': 'multipart/form-data' }
+                });
+                window.location.reload();
+              }
+            };
+            input.click();
+          }}
+        >
+          Upload Documents
         </Button>
       </Box>
 
-      <DataGrid
-        rows={invoices || []}
-        columns={columns}
-        loading={isLoading}
-        initialState={{
-          pagination: {
-            paginationModel: { page: 0, pageSize: 10 },
-          },
-        }}
-        pageSizeOptions={[5, 10, 20]}
-        checkboxSelection
-        disableRowSelectionOnClick
-      />
-
-      <Snackbar open={!!error} autoHideDuration={6000} onClose={() => setError(null)}>
-        <Alert severity="error" onClose={() => setError(null)}>{error}</Alert>
-      </Snackbar>
-      <Snackbar open={!!success} autoHideDuration={6000} onClose={() => setSuccess(null)}>
-        <Alert severity="success" onClose={() => setSuccess(null)}>{success}</Alert>
-      </Snackbar>
-    </Box>
+      <Card sx={{ height: 600, width: '100%', p: 0 }}>
+        <DataGrid
+          rows={data?.invoices || []}
+          columns={columns}
+          rowCount={data?.total || 0}
+          loading={isLoading}
+          paginationModel={{ page, pageSize }}
+          onPaginationModelChange={(model) => {
+            setPage(model.page);
+            setPageSize(model.pageSize);
+          }}
+          paginationMode="server"
+          pageSizeOptions={[10, 25, 50]}
+          disableRowSelectionOnClick
+        />
+      </Card>
+    </motion.div>
   );
 };
 

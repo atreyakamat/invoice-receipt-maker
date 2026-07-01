@@ -16,11 +16,15 @@ import integrationRoutes from './routes/integration.routes';
 import inboundRoutes from './routes/inbound.routes';
 import adminRoutes from './routes/admin.routes';
 import { startWorkers } from './workers';
+import { globalLimiter } from './middleware/rateLimiter';
 
 const app = express();
 
 app.use(helmet());
 app.use(cors());
+
+// Apply global rate limiting to all requests
+app.use('/api', globalLimiter);
 app.use('/api/v1/subscription/webhook', express.raw({ type: 'application/json' }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
