@@ -53,6 +53,7 @@ export class AuthService {
           passwordHash,
           role: UserRole.OWNER,
           organizationId: org.id,
+          emailVerified: true, // Auto-verify for pilot run
         },
       });
 
@@ -102,9 +103,9 @@ export class AuthService {
       throw new Error('Invalid credentials');
     }
 
-    if (!user.emailVerified) {
-      throw { status: 403, message: 'Please verify your email address before logging in' };
-    }
+    // if (!user.emailVerified) {
+    //   throw { status: 403, message: 'Please verify your email address before logging in' };
+    // }
 
     const accessToken = this.generateAccessToken(user.id, user.role, user.organizationId);
     const refreshToken = this.generateRefreshToken(user.id);

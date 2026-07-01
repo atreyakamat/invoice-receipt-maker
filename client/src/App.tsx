@@ -17,6 +17,7 @@ import AdminOrganizations from './pages/admin/Organizations';
 import AdminUsers from './pages/admin/Users';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import LandingPage from './pages/LandingPage';
 import NotFound from './pages/NotFound';
 import { AuthProvider } from './contexts/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -32,6 +33,7 @@ function App() {
           <BrowserRouter>
             <Routes>
               {/* Public Routes */}
+              <Route path="/" element={<LandingPage />} />
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
               <Route path="/verify-email" element={<VerifyEmail />} />
@@ -39,7 +41,6 @@ function App() {
               {/* Protected Routes */}
               <Route element={<ProtectedRoute />}>
                 <Route element={<Layout />}>
-                  <Route path="/" element={<Navigate to="/dashboard" replace />} />
                   <Route path="/dashboard" element={<Dashboard />} />
                   <Route path="/invoices" element={<Invoices />} />
                   <Route path="/invoices/:id/validate" element={<InvoiceValidation />} />

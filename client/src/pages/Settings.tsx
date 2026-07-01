@@ -99,7 +99,6 @@ const Settings: React.FC = () => {
           <Tabs value={value} onChange={(_e, val) => setValue(val)} aria-label="settings tabs">
             <Tab label="Profile" />
             <Tab label="Organization" />
-            <Tab label="Billing" />
           </Tabs>
         </Box>
         
@@ -169,19 +168,6 @@ const Settings: React.FC = () => {
                   {orgMutation.isError && <Alert severity="error">Failed to update organization</Alert>}
                 </Box>
               )}
-            </CardContent>
-          </Card>
-        </CustomTabPanel>
-        
-        <CustomTabPanel value={value} index={2}>
-          <Card>
-            <CardContent>
-              <Typography variant="h6" gutterBottom>Subscription Plan</Typography>
-              <Box sx={{ mb: 2 }}>
-                <Typography variant="body1">Current Plan: <strong>Starter (Demo)</strong></Typography>
-                <Typography variant="body2" color="textSecondary">Billing functionality will be handled via Stripe in Phase 10</Typography>
-              </Box>
-              <Button variant="outlined" disabled>Manage Billing</Button>
             </CardContent>
           </Card>
         </CustomTabPanel>
