@@ -17,6 +17,7 @@ import AdminOrganizations from './pages/admin/Organizations';
 import AdminUsers from './pages/admin/Users';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import NotFound from './pages/NotFound';
 import { AuthProvider } from './contexts/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 
@@ -55,7 +56,7 @@ function App() {
                 </Route>
               </Route>
 
-              <Route path="*" element={<div>Not Found</div>} />
+              <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>
         </AuthProvider>
