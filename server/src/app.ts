@@ -20,6 +20,8 @@ import dashboardRoutes from './routes/dashboard.routes';
 import integrationRoutes from './routes/integration.routes';
 import inboundRoutes from './routes/inbound.routes';
 import adminRoutes from './routes/admin.routes';
+import customerRoutes from './routes/customer.routes';
+import issuedInvoiceRoutes from './routes/issuedInvoice.routes';
 import { startWorkers } from './workers';
 import { globalLimiter } from './middleware/rateLimiter';
 import { requireAuth } from './middleware/auth.middleware';
@@ -76,6 +78,8 @@ app.use('/api/v1/dashboard', dashboardRoutes);
 app.use('/api/v1/integrations', integrationRoutes);
 app.use('/api/v1/inbound', inboundRoutes);
 app.use('/api/v1/admin', adminRoutes);
+app.use('/api/v1/customers', customerRoutes);
+app.use('/api/v1/issued-invoices', issuedInvoiceRoutes);
 
 app.use('/api', (_req, res) => {
   res.status(404).json({ message: 'Not found' });

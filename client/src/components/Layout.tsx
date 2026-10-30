@@ -3,10 +3,35 @@ import {
   AppBar, Avatar, LinearProgress, Badge, Box, Button, Divider, Drawer, IconButton, List, ListItemButton, ListItemIcon, ListItemText,
   Menu, MenuItem, Toolbar, Tooltip, Typography, useMediaQuery,
 } from '@mui/material';
+
+type NavItemT = { text: string; icon: React.ReactNode; path: string; badge?: boolean };
+
+const NavItem = ({ item, selected, needsReview, onNavigate }: { item: NavItemT; selected: boolean; needsReview: number; onNavigate: () => void }) => (
+  <ListItemButton
+    component={NavLink}
+    to={item.path}
+    selected={selected}
+    onClick={onNavigate}
+    data-tour={`nav-${item.text.toLowerCase()}`}
+    sx={{
+      borderRadius: 2, mb: 0.5, py: 0.9,
+      '&.Mui-selected': { bgcolor: 'rgba(var(--mui-palette-primary-mainChannel) / 0.1)', color: 'primary.main' },
+      '&.Mui-selected .MuiListItemIcon-root': { color: 'primary.main' },
+    }}
+  >
+    <ListItemIcon sx={{ minWidth: 38 }}>{item.icon}</ListItemIcon>
+    <ListItemText primary={item.text} slotProps={{ primary: { sx: { fontWeight: selected ? 600 : 500, fontSize: 14.5 } } }} />
+    {item.badge && needsReview > 0 && (
+      <Badge badgeContent={needsReview} color="warning" sx={{ mr: 1.5, '& .MuiBadge-badge': { fontWeight: 700 } }} />
+    )}
+  </ListItemButton>
+);
 import { useColorScheme, useTheme } from '@mui/material/styles';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import SpaceDashboardOutlinedIcon from '@mui/icons-material/SpaceDashboardOutlined';
 import ReceiptLongOutlinedIcon from '@mui/icons-material/ReceiptLongOutlined';
+import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
+import PeopleOutlineOutlinedIcon from '@mui/icons-material/PeopleOutlineOutlined';
 import StorefrontOutlinedIcon from '@mui/icons-material/StorefrontOutlined';
 import FileDownloadOutlinedIcon from '@mui/icons-material/FileDownloadOutlined';
 import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined';
@@ -26,11 +51,19 @@ import { useInvoices } from '../lib/queries';
 const DRAWER_WIDTH = 232;
 
 const NAV = [
-  { text: 'Dashboard', icon: <SpaceDashboardOutlinedIcon />, path: '/dashboard' },
-  { text: 'Invoices', icon: <ReceiptLongOutlinedIcon />, path: '/invoices', badge: true },
-  { text: 'Vendors', icon: <StorefrontOutlinedIcon />, path: '/vendors' },
-  { text: 'Exports', icon: <FileDownloadOutlinedIcon />, path: '/exports' },
-  { text: 'Settings', icon: <SettingsOutlinedIcon />, path: '/settings' },
+  { text: 'Dashboard', icon: <SpaceDashboardOutlinedIcon />, path: '/dashboard', section: 'top' as const },
+  { text: 'Inbox', icon: <ReceiptLongOutlinedIcon />, path: '/invoices', badge: true, section: 'receive' as const },
+  { text: 'Vendors', icon: <StorefrontOutlinedIcon />, path: '/vendors', section: 'receive' as const },
+  { text: 'Issued', icon: <DescriptionOutlinedIcon />, path: '/issued', section: 'send' as const },
+  { text: 'Customers', icon: <PeopleOutlineOutlinedIcon />, path: '/customers', section: 'send' as const },
+  { text: 'Exports', icon: <FileDownloadOutlinedIcon />, path: '/exports', section: 'bottom' as const },
+  { text: 'Settings', icon: <SettingsOutlinedIcon />, path: '/settings', section: 'bottom' as const },
+];
+
+const SECTIONS: { key: 'receive' | 'send' | 'bottom'; label: string }[] = [
+  { key: 'receive', label: 'Received' },
+  { key: 'send', label: 'Issued' },
+  { key: 'bottom', label: '' },
 ];
 
 const Layout: React.FC = () => {
@@ -56,30 +89,23 @@ const Layout: React.FC = () => {
         <Logo />
       </Toolbar>
       <List sx={{ px: 1.5, py: 1 }}>
-        {NAV.map(item => {
-          const selected = location.pathname.startsWith(item.path);
-          return (
-            <ListItemButton
-              key={item.path}
-              component={NavLink}
-              to={item.path}
-              selected={selected}
-              onClick={() => setMobileOpen(false)}
-              data-tour={`nav-${item.text.toLowerCase()}`}
-              sx={{
-                borderRadius: 2, mb: 0.5, py: 0.9,
-                '&.Mui-selected': { bgcolor: 'rgba(var(--mui-palette-primary-mainChannel) / 0.1)', color: 'primary.main' },
-                '&.Mui-selected .MuiListItemIcon-root': { color: 'primary.main' },
-              }}
-            >
-              <ListItemIcon sx={{ minWidth: 38 }}>{item.icon}</ListItemIcon>
-              <ListItemText primary={item.text} slotProps={{ primary: { sx: { fontWeight: selected ? 600 : 500, fontSize: 14.5 } } }} />
-              {item.badge && needsReview > 0 && (
-                <Badge badgeContent={needsReview} color="warning" sx={{ mr: 1.5, '& .MuiBadge-badge': { fontWeight: 700 } }} />
-              )}
-            </ListItemButton>
-          );
-        })}
+        {NAV.filter(n => n.section === 'top').map(item => (
+          <NavItem key={item.path} item={item} needsReview={needsReview} selected={location.pathname.startsWith(item.path)} onNavigate={() => setMobileOpen(false)} />
+        ))}
+        {SECTIONS.filter(s => s.key !== 'bottom').map(section => (
+          <React.Fragment key={section.key}>
+            <Typography variant="overline" sx={{ display: 'block', px: 2, mt: 1.5, mb: 0.5, color: 'text.secondary' }}>
+              {section.label}
+            </Typography>
+            {NAV.filter(n => n.section === section.key).map(item => (
+              <NavItem key={item.path} item={item} needsReview={needsReview} selected={location.pathname.startsWith(item.path)} onNavigate={() => setMobileOpen(false)} />
+            ))}
+          </React.Fragment>
+        ))}
+        <Divider sx={{ my: 1.5 }} />
+        {NAV.filter(n => n.section === 'bottom').map(item => (
+          <NavItem key={item.path} item={item} needsReview={needsReview} selected={location.pathname.startsWith(item.path)} onNavigate={() => setMobileOpen(false)} />
+        ))}
       </List>
     </Box>
   );

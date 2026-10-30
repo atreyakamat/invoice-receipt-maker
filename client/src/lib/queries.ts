@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { apiPrivate } from '../api/axios';
 import { isProcessing } from './format';
-import type { InvoiceSummary, Meta, Vendor } from './types';
+import type { Customer, InvoiceSummary, IssuedInvoiceSummary, Meta, Vendor } from './types';
 
 /** Invoice list; polls while any document is still being processed. */
 export const useInvoices = () =>
@@ -15,6 +15,18 @@ export const useVendors = () =>
   useQuery({
     queryKey: ['vendors'],
     queryFn: async () => (await apiPrivate.get<Vendor[]>('/vendors')).data,
+  });
+
+export const useCustomers = () =>
+  useQuery({
+    queryKey: ['customers'],
+    queryFn: async () => (await apiPrivate.get<Customer[]>('/customers')).data,
+  });
+
+export const useIssuedInvoices = () =>
+  useQuery({
+    queryKey: ['issued-invoices'],
+    queryFn: async () => (await apiPrivate.get<IssuedInvoiceSummary[]>('/issued-invoices')).data,
   });
 
 export const useMeta = () =>

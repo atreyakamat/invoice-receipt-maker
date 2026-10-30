@@ -28,6 +28,8 @@ Update: `git pull && docker compose up -d --build`. The schema is synced on star
 
 ## How it works
 
+### Receiving (supplier invoices in)
+
 1. **Upload** PDFs or images (JPG, PNG, TIFF; 25 MB, 20 at a time). Drop files anywhere in the app.
 2. **Read**: text PDFs are parsed directly; images go through Tesseract OCR (bundled, works offline).
 3. **Extract**: vendor, number, dates, currency, amounts, tax, category, line items. AI model if configured, rules otherwise.
@@ -36,6 +38,12 @@ Update: `git pull && docker compose up -d --build`. The schema is synced on star
 5. **Export** approved (or all reviewed) invoices to CSV or Excel, filtered by date.
 
 Approving creates or matches the vendor automatically.
+
+### Issuing (invoices out)
+
+1. **Add customers** with their email, address and tax ID.
+2. **Create an invoice**: pick a customer, add line items with quantity, price and tax rate; totals update as you type. Numbers auto-increment (`INV-YYYY-NNNN`) and can be overridden.
+3. **Send via Gmail**: the app renders a branded PDF, saves it to your downloads, and opens a Gmail compose window in a new tab under the Gmail account you're already signed into, with the recipient, subject and message prefilled. You drag the PDF into the draft and click Send — no credentials or OAuth needed. Mark the invoice as **Sent**, then **Paid** when the money arrives.
 
 ## Local development
 
@@ -70,7 +78,10 @@ All routes under `/api/v1`, bearer-token auth (`/auth/login`, `/auth/register`, 
 | `POST` | `/invoices/:id/reprocess` | run extraction again |
 | `GET` | `/exports/csv` · `/exports/excel` | `?status=approved\|all&from=&to=` |
 | `GET` | `/dashboard/analytics` | totals, monthly spend, top vendors |
-| | `/vendors` · `/organization` | CRUD |
+| | `/vendors` · `/customers` · `/organization` | CRUD |
+| | `/issued-invoices` | create, list, update, status |
+| `GET` | `/issued-invoices/:id/pdf` | branded invoice PDF |
+| `GET` | `/issued-invoices/:id/send-email` | Gmail compose URL and PDF filename to attach |
 
 ## License
 

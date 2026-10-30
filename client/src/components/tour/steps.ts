@@ -43,6 +43,12 @@ export const TOUR_STEPS: TourStep[] = [
     body: 'Download approved invoices as CSV or Excel for your accounting tool.',
   },
   {
+    route: '/issued',
+    target: 'nav-issued',
+    title: 'Create and send',
+    body: 'Make an invoice for a customer and send it as a PDF via your own Gmail account.',
+  },
+  {
     target: 'help',
     title: 'That’s it',
     body: 'Replay this tour any time from here.',

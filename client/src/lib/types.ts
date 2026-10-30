@@ -59,3 +59,58 @@ export interface Meta {
   aiModel: string | null;
   categories: string[];
 }
+
+export type IssuedInvoiceStatus = 'DRAFT' | 'SENT' | 'PAID' | 'CANCELLED';
+
+export interface Customer {
+  id: string;
+  name: string;
+  email: string | null;
+  phone: string | null;
+  taxId: string | null;
+  addressLine1: string | null;
+  addressLine2: string | null;
+  city: string | null;
+  state: string | null;
+  postalCode: string | null;
+  country: string | null;
+  notes: string | null;
+  invoiceCount: number;
+  totalBilled: number;
+  outstanding: number;
+}
+
+export interface IssuedInvoiceItem {
+  id?: string;
+  lineNumber?: number;
+  description: string;
+  quantity: string | number;
+  unitPrice: string | number;
+  taxRate: string | number;
+  total?: string | number;
+}
+
+export interface IssuedInvoiceSummary {
+  id: string;
+  number: string;
+  issueDate: string;
+  dueDate: string | null;
+  currency: string;
+  total: string;
+  status: IssuedInvoiceStatus;
+  sentAt: string | null;
+  paidAt: string | null;
+  createdAt: string;
+  customer: { id: string; name: string; email: string | null };
+}
+
+export interface IssuedInvoiceDetail extends Omit<IssuedInvoiceSummary, 'customer'> {
+  notes: string | null;
+  terms: string | null;
+  subtotal: string;
+  tax: string;
+  discount: string;
+  shipping: string;
+  customer: Customer;
+  items: Required<IssuedInvoiceItem>[];
+}

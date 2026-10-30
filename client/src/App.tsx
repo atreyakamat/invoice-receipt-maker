@@ -22,6 +22,9 @@ const InvoiceReview = lazy(() => import('./pages/InvoiceReview'));
 const Exports = lazy(() => import('./pages/Exports'));
 const Settings = lazy(() => import('./pages/Settings'));
 const Vendors = lazy(() => import('./pages/Vendors'));
+const Customers = lazy(() => import('./pages/Customers'));
+const IssuedInvoices = lazy(() => import('./pages/IssuedInvoices'));
+const IssuedInvoiceEditor = lazy(() => import('./pages/IssuedInvoiceEditor'));
 const VerifyEmail = lazy(() => import('./pages/VerifyEmail'));
 const AdminLayout = lazy(() => import('./layouts/AdminLayout'));
 const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard'));
@@ -59,6 +62,10 @@ function App() {
                         <Route path="/invoices/:id" element={<InvoiceReview />} />
                         <Route path="/invoices/:id/validate" element={<InvoiceReview />} />
                         <Route path="/vendors" element={<Vendors />} />
+                        <Route path="/customers" element={<Customers />} />
+                        <Route path="/issued" element={<IssuedInvoices />} />
+                        <Route path="/issued/new" element={<IssuedInvoiceEditor />} />
+                        <Route path="/issued/:id" element={<IssuedInvoiceEditor />} />
                         <Route path="/exports" element={<Exports />} />
                         <Route path="/reports" element={<Navigate to="/exports" replace />} />
                         <Route path="/settings" element={<Settings />} />

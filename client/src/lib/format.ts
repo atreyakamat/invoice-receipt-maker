@@ -56,3 +56,14 @@ export const fileSize = (bytes: number) =>
 export const isPlaceholderNumber = (n: string) => n.startsWith('PENDING-');
 
 export const CURRENCIES = ['USD', 'EUR', 'GBP', 'INR', 'AUD', 'CAD', 'SGD', 'AED', 'JPY', 'CHF', 'NZD', 'ZAR'];
+
+export type IssuedStatus = 'DRAFT' | 'SENT' | 'PAID' | 'CANCELLED';
+
+type ChipColorStrict = 'default' | 'info' | 'warning' | 'success' | 'error';
+
+export const ISSUED_STATUS: Record<IssuedStatus, { label: string; color: ChipColorStrict }> = {
+  DRAFT: { label: 'Draft', color: 'default' },
+  SENT: { label: 'Sent', color: 'info' },
+  PAID: { label: 'Paid', color: 'success' },
+  CANCELLED: { label: 'Cancelled', color: 'default' },
+};
