@@ -1,21 +1,39 @@
 import { Request, Response, NextFunction } from 'express';
 import { AuthService } from '../services/auth.service';
 import prisma from '../utils/prisma';
+import { z } from 'zod';
+
+const registerSchema = z.object({
+  firstName: z.string().trim().min(1, 'First name is required'),
+  lastName: z.string().trim().min(1, 'Last name is required'),
+  email: z.string().trim().toLowerCase().email('Enter a valid email'),
+  password: z.string().min(8, 'Password must be at least 8 characters'),
+  companyName: z.string().trim().min(1, 'Company name is required'),
+  currency: z.string().trim().length(3).toUpperCase().optional(),
+});
+
+const loginSchema = z.object({
+  email: z.string().trim().toLowerCase().email('Enter a valid email'),
+  password: z.string().min(1, 'Password is required'),
+});
+
+const profileSchema = z.object({
+  firstName: z.string().trim().min(1),
+  lastName: z.string().trim().min(1),
+});
+
+const passwordSchema = z.object({
+  currentPassword: z.string().min(1),
+  newPassword: z.string().min(8, 'Password must be at least 8 characters'),
+});
 
 export class AuthController {
   static async register(req: Request, res: Response, next: NextFunction) {
     try {
-      const { firstName, lastName, email, password, companyName } = req.body;
-      
-      const result = await AuthService.register({
-        firstName,
-        lastName,
-        email,
-        password,
-        companyName,
-      });
-
-      res.status(201).json(result);
+      const data = registerSchema.parse(req.body);
+      await AuthService.register(data);
+      const session = await AuthService.login(data.email, data.password);
+      res.status(201).json(session);
     } catch (error) {
       next(error);
     }
@@ -23,8 +41,7 @@ export class AuthController {
 
   static async login(req: Request, res: Response, next: NextFunction) {
     try {
-      const { email, password } = req.body;
-      
+      const { email, password } = loginSchema.parse(req.body);
       const result = await AuthService.login(email, password);
 
       res.status(200).json(result);
@@ -73,7 +90,7 @@ export class AuthController {
   static async updateMe(req: Request, res: Response, next: NextFunction) {
     try {
       const userId = (req as any).user.userId;
-      const { firstName, lastName } = req.body;
+      const { firstName, lastName } = profileSchema.parse(req.body);
 
       const user = await prisma.user.update({
         where: { id: userId },
@@ -89,6 +106,16 @@ export class AuthController {
       });
 
       res.status(200).json(user);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async changePassword(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { currentPassword, newPassword } = passwordSchema.parse(req.body);
+      await AuthService.changePassword((req as any).user.userId, currentPassword, newPassword);
+      res.status(204).send();
     } catch (error) {
       next(error);
     }

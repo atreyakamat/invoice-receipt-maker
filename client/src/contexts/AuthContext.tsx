@@ -1,19 +1,27 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { apiClient, apiPrivate } from '../api/axios';
+import { queryClient } from '../queryClient';
 
-interface User {
+export interface User {
   id: string;
   email: string;
   firstName: string;
   lastName: string;
   role: string;
+  organizationId?: string;
+}
+
+interface Session {
+  accessToken: string;
+  refreshToken: string;
+  user: User;
 }
 
 interface AuthContextType {
   user: User | null;
   loading: boolean;
-  login: (data: any) => Promise<void>;
-  register: (data: any) => Promise<void>;
+  login: (data: { email: string; password: string }) => Promise<void>;
+  register: (data: Record<string, string>) => Promise<void>;
   logout: () => void;
   updateUser: (user: User) => void;
 }
@@ -26,13 +34,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     const initAuth = async () => {
-      const token = localStorage.getItem('accessToken');
-      if (token) {
+      if (localStorage.getItem('accessToken')) {
         try {
-          // Verify token or fetch user profile
-          const res = await apiPrivate.get('/auth/me'); // Assuming we add a /me endpoint
+          const res = await apiPrivate.get('/auth/me');
           setUser(res.data);
-        } catch (error) {
+        } catch {
           localStorage.removeItem('accessToken');
           localStorage.removeItem('refreshToken');
         }
@@ -42,32 +48,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     initAuth();
   }, []);
 
-  const login = async (data: any) => {
-    const res = await apiClient.post('/auth/login', data);
-    localStorage.setItem('accessToken', res.data.accessToken);
-    localStorage.setItem('refreshToken', res.data.refreshToken);
-    setUser(res.data.user);
+  const startSession = (session: Session) => {
+    localStorage.setItem('accessToken', session.accessToken);
+    localStorage.setItem('refreshToken', session.refreshToken);
+    queryClient.clear();
+    setUser(session.user);
   };
 
-  const register = async (data: any) => {
-    await apiClient.post('/auth/register', data);
-    // After registration, login immediately
-    await login({ email: data.email, password: data.password });
+  const login = async (data: { email: string; password: string }) => {
+    startSession((await apiClient.post<Session>('/auth/login', data)).data);
+  };
+
+  const register = async (data: Record<string, string>) => {
+    startSession((await apiClient.post<Session>('/auth/register', data)).data);
   };
 
   const logout = () => {
     localStorage.removeItem('accessToken');
     localStorage.removeItem('refreshToken');
+    queryClient.clear();
     setUser(null);
-    window.location.href = '/login';
-  };
-
-  const updateUser = (updatedUser: User) => {
-    setUser(updatedUser);
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout, updateUser }}>
+    <AuthContext.Provider value={{ user, loading, login, register, logout, updateUser: setUser }}>
       {children}
     </AuthContext.Provider>
   );

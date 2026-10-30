@@ -1,15 +1,16 @@
 import React, { useState } from 'react';
-import { Box, Card, CardContent, TextField, Button, Typography, Alert, Link as MuiLink } from '@mui/material';
-import { useNavigate, Link } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
+import { Alert, Button, Link as MuiLink, Stack, TextField, Typography } from '@mui/material';
+import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { motion } from 'framer-motion';
+import { useAuth } from '../contexts/AuthContext';
+import { errorMessage } from '../api/axios';
+import AuthShell from '../components/AuthShell';
 
 const loginSchema = z.object({
-  email: z.string().email('Invalid email address'),
-  password: z.string().min(1, 'Password is required'),
+  email: z.string().email('Enter a valid email'),
+  password: z.string().min(1, 'Required'),
 });
 
 type LoginFormData = z.infer<typeof loginSchema>;
@@ -17,101 +18,42 @@ type LoginFormData = z.infer<typeof loginSchema>;
 const Login: React.FC = () => {
   const [error, setError] = useState('');
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const location = useLocation();
+  const { login, user, loading } = useAuth();
 
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<LoginFormData>({
-    resolver: zodResolver(loginSchema)
+    resolver: zodResolver(loginSchema),
   });
+
+  if (!loading && user) return <Navigate to="/dashboard" replace />;
 
   const onSubmit = async (data: LoginFormData) => {
     try {
       setError('');
       await login(data);
-      navigate('/');
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Login failed');
+      navigate((location.state as any)?.from?.pathname || '/dashboard', { replace: true });
+    } catch (err) {
+      setError(errorMessage(err, 'Sign in failed'));
     }
   };
 
   return (
-    <Box sx={{
-      display: 'flex',
-      justifyContent: 'center',
-      alignItems: 'center',
-      minHeight: '100vh',
-      background: 'linear-gradient(135deg, #f8f9fa 0%, #e3f2fd 100%)',
-      position: 'relative',
-      overflow: 'hidden'
-    }}>
-      {/* Decorative Blob */}
-      <Box
-        sx={{
-          position: 'absolute',
-          bottom: '-10%',
-          left: '-5%',
-          width: '500px',
-          height: '500px',
-          background: 'radial-gradient(circle, rgba(26,115,232,0.15) 0%, rgba(26,115,232,0) 70%)',
-          borderRadius: '50%',
-          filter: 'blur(40px)',
-          zIndex: 0
-        }}
-      />
-      
-      <Box component={motion.div} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} sx={{ zIndex: 1, width: '100%', maxWidth: 450, p: 2 }}>
-        <Card sx={{ p: 2, bgcolor: 'rgba(255,255,255,0.7)', backdropFilter: 'blur(16px)', borderRadius: 4, boxShadow: '0 8px 32px rgba(0,0,0,0.05)' }}>
-          <CardContent>
-            <Typography variant="h4" sx={{ mb: 1, fontWeight: 700, textAlign: 'center', color: 'primary.main' }}>
-              Welcome Back
-            </Typography>
-            <Typography variant="body2" sx={{ mb: 4, textAlign: 'center', color: 'text.secondary' }}>
-              Enter your credentials to access your account
-            </Typography>
-
-            {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
-            
-            <form onSubmit={handleSubmit(onSubmit)}>
-              <TextField
-                label="Email"
-                type="email"
-                fullWidth
-                margin="normal"
-                {...register('email')}
-                error={!!errors.email}
-                helperText={errors.email?.message}
-                sx={{ mb: 2 }}
-              />
-              <TextField
-                label="Password"
-                type="password"
-                fullWidth
-                margin="normal"
-                {...register('password')}
-                error={!!errors.password}
-                helperText={errors.password?.message}
-                sx={{ mb: 3 }}
-              />
-              <Button 
-                type="submit" 
-                variant="contained" 
-                fullWidth 
-                size="large"
-                sx={{ mb: 3, py: 1.5, fontSize: '1.1rem', borderRadius: 8 }}
-                disabled={isSubmitting}
-              >
-                {isSubmitting ? 'Signing In...' : 'Sign In'}
-              </Button>
-              <Typography variant="body2" align="center" color="text.secondary">
-                Don't have an account?{' '}
-                <MuiLink component={Link} to="/register" sx={{ fontWeight: 600 }}>
-                  Register
-                </MuiLink>
-              </Typography>
-            </form>
-          </CardContent>
-        </Card>
-      </Box>
-    </Box>
+    <AuthShell title="Sign in" subtitle="Welcome back.">
+      <form onSubmit={handleSubmit(onSubmit)} noValidate>
+        <Stack spacing={2}>
+          {error && <Alert severity="error">{error}</Alert>}
+          <TextField label="Email" type="email" autoComplete="email" autoFocus fullWidth size="medium" {...register('email')} error={!!errors.email} helperText={errors.email?.message} />
+          <TextField label="Password" type="password" autoComplete="current-password" fullWidth size="medium" {...register('password')} error={!!errors.password} helperText={errors.password?.message} />
+          <Button type="submit" variant="contained" size="large" fullWidth disabled={isSubmitting}>
+            {isSubmitting ? 'Signing in…' : 'Sign in'}
+          </Button>
+          <Typography variant="body2" color="text.secondary" align="center">
+            New here?{' '}
+            <MuiLink component={Link} to="/register" sx={{ fontWeight: 600 }}>Create an account</MuiLink>
+          </Typography>
+        </Stack>
+      </form>
+    </AuthShell>
   );
 };
 

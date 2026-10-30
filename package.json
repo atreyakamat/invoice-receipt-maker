@@ -1,5 +1,5 @@
 {
-  "name": "invoice-receipt-maker",
+  "name": "invoicemaker",
   "version": "1.0.0",
   "private": true,
   "workspaces": [
@@ -9,9 +9,9 @@
   "scripts": {
     "dev:server": "npm run dev -w server",
     "dev:client": "npm run dev -w client",
-    "dev": "npm run dev:server & npm run dev:client",
     "build:server": "npm run build -w server",
     "build:client": "npm run build -w client",
-    "build": "npm run build:server && npm run build:client"
+    "build": "npm run build:server && npm run build:client",
+    "start": "npm start -w server"
   }
 }

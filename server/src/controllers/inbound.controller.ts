@@ -1,7 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import prisma from '../utils/prisma';
-import { addInvoiceToQueue } from '../jobs/upload.queue';
-import { InvoiceStatus, OCRProvider, OCRStatus } from '@prisma/client';
+import { InvoiceService } from '../services/invoice.service';
 
 export class InboundController {
   static async handleInboundEmail(req: Request, res: Response, next: NextFunction) {
@@ -35,33 +34,7 @@ export class InboundController {
 
       // Process each attachment as a separate invoice
       for (const file of files) {
-        const invoice = await prisma.invoice.create({
-          data: {
-            organizationId: user.organizationId,
-            uploadedById: user.id,
-            invoiceNumber: `EMAIL-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-            invoiceDate: new Date(),
-            currency: user.organization.currency || 'USD',
-            subtotal: 0,
-            tax: 0,
-            discount: 0,
-            shipping: 0,
-            total: 0,
-            confidence: 0,
-            status: InvoiceStatus.QUEUED,
-            storageUrl: file.path, 
-          },
-        });
-
-        await prisma.oCRJob.create({
-          data: {
-            invoiceId: invoice.id,
-            provider: OCRProvider.TESSERACT,
-            status: OCRStatus.QUEUED,
-          },
-        });
-
-        await addInvoiceToQueue(invoice.id);
+        await InvoiceService.createFromFile(user.organizationId, user.id, file);
       }
 
       res.status(200).send('OK');

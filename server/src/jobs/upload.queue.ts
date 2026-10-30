@@ -1,36 +1,30 @@
-import { processUploadJob } from '../workers/upload.worker';
-import { processOcrJob } from '../workers/ocr.worker';
-import { processAiJob } from '../workers/ai.worker';
-import { EventEmitter } from 'events';
+import { processInvoice } from '../workers/pipeline';
+import { config } from '../config';
 
-export const queueEvents = new EventEmitter();
+// In-process queue: OCR is CPU-heavy, so only a few documents are processed at once.
+const pending: string[] = [];
+const queued = new Set<string>();
+let running = 0;
 
-// Mock BullMQ queues for synchronous/local processing without Redis
-export const uploadQueue = {
-  add: async (name: string, data: { invoiceId: string }) => {
-    // Run in background without blocking the request
-    setTimeout(() => {
-      processUploadJob(data).catch(console.error);
-    }, 0);
-  }
-};
-
-export const ocrQueue = {
-  add: async (name: string, data: { invoiceId: string }) => {
-    setTimeout(() => {
-      processOcrJob(data).catch(console.error);
-    }, 0);
-  }
-};
-
-export const aiQueue = {
-  add: async (name: string, data: { invoiceId: string }) => {
-    setTimeout(() => {
-      processAiJob(data).catch(console.error);
-    }, 0);
+const drain = () => {
+  while (running < config.ocrConcurrency && pending.length) {
+    const invoiceId = pending.shift()!;
+    running++;
+    processInvoice(invoiceId)
+      .catch(error => console.error(`Pipeline crashed for ${invoiceId}:`, error))
+      .finally(() => {
+        running--;
+        queued.delete(invoiceId);
+        drain();
+      });
   }
 };
 
 export const addInvoiceToQueue = async (invoiceId: string) => {
-  await uploadQueue.add('process-invoice', { invoiceId });
+  if (queued.has(invoiceId)) return;
+  queued.add(invoiceId);
+  pending.push(invoiceId);
+  setImmediate(drain);
 };
+
+export const queueStats = () => ({ running, waiting: pending.length });

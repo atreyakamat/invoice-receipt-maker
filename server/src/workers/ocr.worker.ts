@@ -1,76 +1,33 @@
-import prisma from '../utils/prisma';
-import { InvoiceStatus, OCRStatus, AIProvider, AIJobStatus } from '@prisma/client';
-import Tesseract from 'tesseract.js';
+import fs from 'fs';
 import path from 'path';
-import { aiQueue } from '../jobs/upload.queue';
+import Tesseract from 'tesseract.js';
+// The package entry point runs a self-test on import; the lib file is the parser itself.
+import pdfParse from 'pdf-parse/lib/pdf-parse.js';
+import { config } from '../config';
 
-export const processOcrJob = async (data: { invoiceId: string }) => {
-  const { invoiceId } = data;
-  console.log(`Processing OCR for invoice: ${invoiceId}`);
+const tessCache = process.env.TESSDATA_DIR || path.join(config.dataDir, 'tessdata');
+fs.mkdirSync(tessCache, { recursive: true });
 
-  try {
-    const invoice = await prisma.invoice.findUnique({ where: { id: invoiceId } });
-    if (!invoice) throw new Error('Invoice not found');
+export interface OcrOutput {
+  text: string;
+  confidence: number;
+  pageCount: number;
+}
 
-    let rawText = '';
-    let confidence = 0;
-
-    if (invoice.storageUrl.endsWith('.pdf')) {
-      rawText = 'PDF extraction requires image conversion first. Assuming simulated text.';
-      confidence = 90.0;
-    } else {
-      const imagePath = path.resolve(process.cwd(), invoice.storageUrl);
-      const { data } = await Tesseract.recognize(imagePath, 'eng');
-      rawText = data.text;
-      confidence = data.confidence;
+/** Text-based PDFs are read directly; images go through Tesseract. */
+export const extractText = async (filePath: string, mimeType: string): Promise<OcrOutput> => {
+  if (mimeType === 'application/pdf' || filePath.toLowerCase().endsWith('.pdf')) {
+    try {
+      const parsed = await pdfParse(fs.readFileSync(filePath));
+      const text = parsed.text.trim();
+      return { text, confidence: text.length > 20 ? 99 : 0, pageCount: parsed.numpages || 1 };
+    } catch (error) {
+      // Damaged or unusual PDFs still go to review for manual entry.
+      console.warn(`Could not read PDF text from ${path.basename(filePath)}:`, error instanceof Error ? error.message : error);
+      return { text: '', confidence: 0, pageCount: 1 };
     }
-
-    await prisma.oCRResult.create({
-      data: {
-        invoiceId,
-        rawText: rawText || 'No text extracted',
-        pageCount: 1,
-        confidence: confidence || 0.0,
-        detectedLanguage: 'en',
-      },
-    });
-
-    await prisma.oCRJob.update({
-      where: { invoiceId },
-      data: { status: OCRStatus.COMPLETED, completedAt: new Date() },
-    });
-
-    // Move to AI status
-    await prisma.invoice.update({
-      where: { id: invoiceId },
-      data: { status: InvoiceStatus.AI },
-    });
-
-    // Create AI Job
-    await prisma.aIJob.create({
-      data: {
-        invoiceId,
-        provider: AIProvider.GEMINI,
-        model: 'gemini-1.5-pro',
-        status: AIJobStatus.QUEUED,
-      }
-    });
-
-    // Enqueue to AI
-    await aiQueue.add('process-ai', { invoiceId });
-
-  } catch (error) {
-    console.error(`OCR worker failed for ${invoiceId}:`, error);
-    await prisma.oCRJob.update({
-      where: { invoiceId },
-      data: { status: OCRStatus.FAILED, errorMessage: String(error) },
-    });
-    await prisma.invoice.update({
-      where: { id: invoiceId },
-      data: { status: InvoiceStatus.FAILED },
-    });
-    throw error;
   }
-};
 
-export const ocrWorker = { name: 'OCR (Sync Worker)', close: async () => {} };
+  const { data } = await Tesseract.recognize(filePath, 'eng', { cachePath: tessCache });
+  return { text: data.text.trim(), confidence: Math.round(data.confidence), pageCount: 1 };
+};

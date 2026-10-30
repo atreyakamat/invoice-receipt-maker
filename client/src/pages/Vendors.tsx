@@ -1,184 +1,173 @@
-import React, { useState } from 'react';
-import { Box, Typography, Button, Paper, Dialog, DialogTitle, DialogContent, DialogActions, TextField, Alert, Snackbar, IconButton } from '@mui/material';
+import React, { useMemo, useState } from 'react';
+import {
+  Alert, Box, Button, Card, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, Grid, IconButton,
+  InputAdornment, TextField, Tooltip,
+} from '@mui/material';
 import { DataGrid, type GridColDef } from '@mui/x-data-grid';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { apiPrivate } from '../api/axios';
-import DeleteIcon from '@mui/icons-material/Delete';
-import EditIcon from '@mui/icons-material/Edit';
+import AddIcon from '@mui/icons-material/Add';
+import SearchIcon from '@mui/icons-material/Search';
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutlineOutlined';
+import { apiPrivate, errorMessage } from '../api/axios';
+import PageHeader from '../components/PageHeader';
+import { useToast } from '../contexts/ToastContext';
+import { useVendors } from '../lib/queries';
+import { date, money } from '../lib/format';
+import type { Vendor } from '../lib/types';
 
 const vendorSchema = z.object({
-  name: z.string().min(1, 'Vendor name is required'),
-  email: z.string().email('Invalid email').or(z.literal('')),
-  gstNumber: z.string().optional(),
-  phone: z.string().optional(),
+  name: z.string().trim().min(1, 'Required'),
+  email: z.string().trim().email('Invalid email').or(z.literal('')),
+  phone: z.string(),
+  gstNumber: z.string(),
+  website: z.string(),
+  addressLine1: z.string(),
+  city: z.string(),
+  country: z.string(),
+  notes: z.string(),
 });
 
-type VendorFormValues = z.infer<typeof vendorSchema>;
+type VendorForm = z.infer<typeof vendorSchema>;
+const EMPTY: VendorForm = { name: '', email: '', phone: '', gstNumber: '', website: '', addressLine1: '', city: '', country: '', notes: '' };
 
 const Vendors: React.FC = () => {
   const queryClient = useQueryClient();
-  const [open, setOpen] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const toast = useToast();
+  const [editing, setEditing] = useState<Vendor | 'new' | null>(null);
+  const [deleting, setDeleting] = useState<Vendor | null>(null);
+  const [search, setSearch] = useState('');
+  const { data: vendors, isLoading } = useVendors();
 
-  const { data: vendors, isLoading } = useQuery({
-    queryKey: ['vendors'],
-    queryFn: async () => {
-      const res = await apiPrivate.get('/vendors');
-      return res.data;
-    }
-  });
+  const { register, handleSubmit, formState: { errors }, reset } = useForm<VendorForm>({ resolver: zodResolver(vendorSchema), defaultValues: EMPTY });
 
-  const { register, handleSubmit, formState: { errors }, reset } = useForm<VendorFormValues>({
-    resolver: zodResolver(vendorSchema),
-    defaultValues: { name: '', email: '', gstNumber: '', phone: '' }
-  });
-
-  const handleOpen = (vendor?: any) => {
-    if (vendor) {
-      setEditingId(vendor.id);
-      reset({
-        name: vendor.name,
-        email: vendor.email || '',
-        gstNumber: vendor.gstNumber || '',
-        phone: vendor.phone || '',
-      });
-    } else {
-      setEditingId(null);
-      reset({ name: '', email: '', gstNumber: '', phone: '' });
-    }
-    setOpen(true);
+  const open = (vendor: Vendor | 'new') => {
+    reset(vendor === 'new' ? EMPTY : Object.fromEntries(Object.keys(EMPTY).map(k => [k, (vendor as any)[k] ?? ''])) as VendorForm);
+    save.reset();
+    setEditing(vendor);
   };
 
-  const handleClose = () => {
-    setOpen(false);
-    setEditingId(null);
+  const invalidate = () => {
+    queryClient.invalidateQueries({ queryKey: ['vendors'] });
+    queryClient.invalidateQueries({ queryKey: ['invoices'] });
   };
 
-  const saveMutation = useMutation({
-    mutationFn: async (data: VendorFormValues) => {
-      if (editingId) {
-        return apiPrivate.put(`/vendors/${editingId}`, data);
-      } else {
-        return apiPrivate.post('/vendors', data);
-      }
-    },
+  const save = useMutation({
+    mutationFn: (data: VendorForm) =>
+      editing && editing !== 'new' ? apiPrivate.put(`/vendors/${editing.id}`, data) : apiPrivate.post('/vendors', data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['vendors'] });
-      setSuccessMsg(editingId ? 'Vendor updated successfully' : 'Vendor added successfully');
-      handleClose();
-    }
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: async (id: string) => {
-      return apiPrivate.delete(`/vendors/${id}`);
+      invalidate();
+      toast(editing === 'new' ? 'Vendor added' : 'Vendor updated');
+      setEditing(null);
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['vendors'] });
-      setSuccessMsg('Vendor deleted successfully');
-    }
   });
 
-  const onSubmit = (data: VendorFormValues) => {
-    saveMutation.mutate(data);
-  };
+  const remove = useMutation({
+    mutationFn: (id: string) => apiPrivate.delete(`/vendors/${id}`),
+    onSuccess: () => {
+      invalidate();
+      toast('Vendor removed', 'info');
+    },
+  });
 
-  const columns: GridColDef[] = [
-    { field: 'name', headerName: 'Vendor Name', width: 250 },
-    { field: 'email', headerName: 'Email', width: 200 },
-    { field: 'gstNumber', headerName: 'Tax ID / GST', width: 150 },
-    { field: 'phone', headerName: 'Phone', width: 150 },
+  const rows = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return (vendors ?? []).filter(v => !q || [v.name, v.email, v.gstNumber, v.city].some(x => x?.toLowerCase().includes(q)));
+  }, [vendors, search]);
+
+  const columns: GridColDef<Vendor>[] = [
+    { field: 'name', headerName: 'Vendor', flex: 1.4, minWidth: 180, renderCell: ({ value }) => <Box sx={{ fontWeight: 600 }}>{value}</Box> },
+    { field: 'gstNumber', headerName: 'Tax ID', flex: 1, minWidth: 130 },
+    { field: 'email', headerName: 'Email', flex: 1.2, minWidth: 170 },
+    { field: 'invoiceCount', headerName: 'Invoices', type: 'number', width: 100 },
+    { field: 'totalSpend', headerName: 'Approved spend', type: 'number', width: 150, valueFormatter: (v: number) => money(v) },
+    { field: 'lastInvoiceDate', headerName: 'Last invoice', width: 130, valueFormatter: (v: string | null) => (v ? date(v) : '—') },
     {
       field: 'actions',
-      headerName: 'Actions',
-      width: 150,
-      renderCell: (params) => (
-        <Box>
-          <IconButton color="primary" onClick={() => handleOpen(params.row)}>
-            <EditIcon />
+      headerName: '',
+      width: 60,
+      sortable: false,
+      renderCell: ({ row }) => (
+        <Tooltip title="Remove">
+          <IconButton size="small" onClick={e => { e.stopPropagation(); setDeleting(row); }} aria-label={`Remove ${row.name}`}>
+            <DeleteOutlineIcon fontSize="small" />
           </IconButton>
-          <IconButton color="error" onClick={() => {
-            if (window.confirm('Are you sure you want to delete this vendor?')) {
-              deleteMutation.mutate(params.row.id);
-            }
-          }}>
-            <DeleteIcon />
-          </IconButton>
-        </Box>
-      )
-    }
+        </Tooltip>
+      ),
+    },
   ];
 
   return (
-    <Box sx={{ height: 600, width: '100%' }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
-        <Typography variant="h4">Vendors</Typography>
-        <Button variant="contained" onClick={() => handleOpen()}>
-          Add Vendor
-        </Button>
-      </Box>
-      <Paper sx={{ height: 500, width: '100%' }}>
-        <DataGrid
-          rows={vendors || []}
-          columns={columns}
-          loading={isLoading}
-          initialState={{
-            pagination: { paginationModel: { page: 0, pageSize: 10 } },
-          }}
-          pageSizeOptions={[5, 10, 25]}
-          checkboxSelection
-          disableRowSelectionOnClick
-        />
-      </Paper>
+    <Box>
+      <PageHeader
+        title="Vendors"
+        subtitle="Added automatically when you approve invoices."
+        actions={<Button variant="contained" startIcon={<AddIcon />} onClick={() => open('new')}>Add vendor</Button>}
+      />
 
-      <Dialog open={open} onClose={handleClose} fullWidth maxWidth="sm">
-        <DialogTitle>{editingId ? 'Edit Vendor' : 'Add Vendor'}</DialogTitle>
-        <form onSubmit={handleSubmit(onSubmit)}>
+      <Card>
+        <Box sx={{ p: 2, borderBottom: 1, borderColor: 'divider' }}>
+          <TextField
+            placeholder="Search"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            sx={{ width: { xs: '100%', sm: 280 } }}
+            slotProps={{ input: { startAdornment: <InputAdornment position="start"><SearchIcon fontSize="small" /></InputAdornment> } }}
+          />
+        </Box>
+        <Box sx={{ height: 'calc(100vh - 290px)', minHeight: 400 }}>
+          <DataGrid
+            rows={rows}
+            columns={columns}
+            loading={isLoading}
+            onRowClick={({ row }) => open(row)}
+            initialState={{ pagination: { paginationModel: { pageSize: 25 } } }}
+            pageSizeOptions={[25, 50, 100]}
+            disableRowSelectionOnClick
+            disableColumnMenu
+            localeText={{ noRowsLabel: 'No vendors yet' }}
+          />
+        </Box>
+      </Card>
+
+      <Dialog open={editing !== null} onClose={() => setEditing(null)} fullWidth maxWidth="sm">
+        <form onSubmit={handleSubmit(d => save.mutate(d))}>
+          <DialogTitle>{editing === 'new' ? 'Add vendor' : 'Edit vendor'}</DialogTitle>
           <DialogContent>
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 1 }}>
-              <TextField
-                fullWidth
-                label="Vendor Name"
-                {...register('name')}
-                error={!!errors.name}
-                helperText={errors.name?.message as string}
-              />
-              <TextField
-                fullWidth
-                label="Email"
-                {...register('email')}
-                error={!!errors.email}
-                helperText={errors.email?.message as string}
-              />
-              <TextField
-                fullWidth
-                label="Tax ID / GST"
-                {...register('gstNumber')}
-              />
-              <TextField
-                fullWidth
-                label="Phone"
-                {...register('phone')}
-              />
-            </Box>
-            {saveMutation.isError && <Alert severity="error" sx={{ mt: 2 }}>Failed to save vendor.</Alert>}
+            <Grid container spacing={2} sx={{ pt: 1 }}>
+              <Grid size={12}>
+                <TextField fullWidth autoFocus label="Name" {...register('name')} error={!!errors.name} helperText={errors.name?.message} />
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6 }}><TextField fullWidth label="Email" {...register('email')} error={!!errors.email} helperText={errors.email?.message} /></Grid>
+              <Grid size={{ xs: 12, sm: 6 }}><TextField fullWidth label="Phone" {...register('phone')} /></Grid>
+              <Grid size={{ xs: 12, sm: 6 }}><TextField fullWidth label="Tax ID / GSTIN" {...register('gstNumber')} /></Grid>
+              <Grid size={{ xs: 12, sm: 6 }}><TextField fullWidth label="Website" {...register('website')} /></Grid>
+              <Grid size={12}><TextField fullWidth label="Address" {...register('addressLine1')} /></Grid>
+              <Grid size={{ xs: 12, sm: 6 }}><TextField fullWidth label="City" {...register('city')} /></Grid>
+              <Grid size={{ xs: 12, sm: 6 }}><TextField fullWidth label="Country" {...register('country')} /></Grid>
+              <Grid size={12}><TextField fullWidth multiline minRows={2} label="Notes" {...register('notes')} /></Grid>
+            </Grid>
+            {save.isError && <Alert severity="error" sx={{ mt: 2 }}>{errorMessage(save.error)}</Alert>}
           </DialogContent>
-          <DialogActions>
-            <Button onClick={handleClose}>Cancel</Button>
-            <Button type="submit" variant="contained" disabled={saveMutation.isPending}>
-              {saveMutation.isPending ? 'Saving...' : 'Save'}
-            </Button>
+          <DialogActions sx={{ px: 3, pb: 2.5 }}>
+            <Button color="inherit" onClick={() => setEditing(null)}>Cancel</Button>
+            <Button type="submit" variant="contained" disabled={save.isPending}>Save</Button>
           </DialogActions>
         </form>
       </Dialog>
 
-      <Snackbar open={!!successMsg} autoHideDuration={6000} onClose={() => setSuccessMsg(null)}>
-        <Alert severity="success" onClose={() => setSuccessMsg(null)}>{successMsg}</Alert>
-      </Snackbar>
+      <Dialog open={!!deleting} onClose={() => setDeleting(null)}>
+        <DialogTitle>Remove {deleting?.name}?</DialogTitle>
+        <DialogContent>
+          <DialogContentText>Existing invoices keep their data.</DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button color="inherit" onClick={() => setDeleting(null)}>Cancel</Button>
+          <Button color="error" variant="contained" onClick={() => { remove.mutate(deleting!.id); setDeleting(null); }}>Remove</Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };

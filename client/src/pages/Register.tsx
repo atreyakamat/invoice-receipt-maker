@@ -1,142 +1,85 @@
 import React, { useState } from 'react';
-import { Box, Card, CardContent, TextField, Button, Typography, Alert, Link as MuiLink, Stack } from '@mui/material';
-import { useNavigate, Link } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
+import { Alert, Button, Link as MuiLink, MenuItem, Stack, TextField, Typography } from '@mui/material';
+import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { motion } from 'framer-motion';
+import { useAuth } from '../contexts/AuthContext';
+import { errorMessage } from '../api/axios';
+import { CURRENCIES } from '../lib/format';
+import AuthShell from '../components/AuthShell';
 
 const registerSchema = z.object({
-  firstName: z.string().min(1, 'First name is required'),
-  lastName: z.string().min(1, 'Last name is required'),
-  email: z.string().email('Invalid email address'),
-  password: z.string().min(12, 'Password must be at least 12 characters'),
-  companyName: z.string().min(1, 'Company name is required'),
+  firstName: z.string().trim().min(1, 'Required'),
+  lastName: z.string().trim().min(1, 'Required'),
+  companyName: z.string().trim().min(1, 'Required'),
+  currency: z.string().length(3),
+  email: z.string().email('Enter a valid email'),
+  password: z.string().min(8, 'At least 8 characters'),
 });
 
 type RegisterFormData = z.infer<typeof registerSchema>;
 
+const guessCurrency = () => {
+  try {
+    const region = new Intl.Locale(navigator.language).maximize().region;
+    const map: Record<string, string> = { IN: 'INR', GB: 'GBP', AU: 'AUD', CA: 'CAD', SG: 'SGD', AE: 'AED', JP: 'JPY', CH: 'CHF', NZ: 'NZD', ZA: 'ZAR' };
+    const eurozone = ['DE', 'FR', 'IT', 'ES', 'NL', 'BE', 'AT', 'IE', 'PT', 'FI', 'GR'];
+    return map[region || ''] || (eurozone.includes(region || '') ? 'EUR' : 'USD');
+  } catch {
+    return 'USD';
+  }
+};
+
 const Register: React.FC = () => {
   const [error, setError] = useState('');
   const navigate = useNavigate();
-  const { register: authRegister } = useAuth();
-  
-  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<RegisterFormData>({
-    resolver: zodResolver(registerSchema)
+  const { register: authRegister, user, loading } = useAuth();
+
+  const { register, handleSubmit, watch, setValue, formState: { errors, isSubmitting } } = useForm<RegisterFormData>({
+    resolver: zodResolver(registerSchema),
+    defaultValues: { currency: guessCurrency() },
   });
+
+  if (!loading && user) return <Navigate to="/dashboard" replace />;
 
   const onSubmit = async (data: RegisterFormData) => {
     try {
       setError('');
       await authRegister(data);
-      navigate('/');
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Registration failed');
+      navigate('/dashboard', { replace: true });
+    } catch (err) {
+      setError(errorMessage(err, 'Could not create account'));
     }
   };
 
   return (
-    <Box sx={{
-      display: 'flex',
-      justifyContent: 'center',
-      alignItems: 'center',
-      minHeight: '100vh',
-      background: 'linear-gradient(135deg, #e3f2fd 0%, #f8f9fa 100%)',
-      position: 'relative',
-      overflow: 'hidden'
-    }}>
-      {/* Decorative Blob */}
-      <Box
-        sx={{
-          position: 'absolute',
-          top: '-10%',
-          right: '-5%',
-          width: '500px',
-          height: '500px',
-          background: 'radial-gradient(circle, rgba(26,115,232,0.15) 0%, rgba(26,115,232,0) 70%)',
-          borderRadius: '50%',
-          filter: 'blur(40px)',
-          zIndex: 0
-        }}
-      />
-      
-      <Box component={motion.div} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} sx={{ zIndex: 1, width: '100%', maxWidth: 500, p: 2 }}>
-        <Card sx={{ p: 2, bgcolor: 'rgba(255,255,255,0.7)', backdropFilter: 'blur(16px)', borderRadius: 4, boxShadow: '0 8px 32px rgba(0,0,0,0.05)' }}>
-          <CardContent>
-            <Typography variant="h4" sx={{ mb: 1, fontWeight: 700, textAlign: 'center', color: 'primary.main' }}>
-              Create an Account
-            </Typography>
-            <Typography variant="body2" sx={{ mb: 4, textAlign: 'center', color: 'text.secondary' }}>
-              Start automating your invoice intake today
-            </Typography>
-
-            {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
-            
-            <form onSubmit={handleSubmit(onSubmit)}>
-              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mb: 2 }}>
-                <TextField
-                  label="First Name"
-                  fullWidth
-                  {...register('firstName')}
-                  error={!!errors.firstName}
-                  helperText={errors.firstName?.message}
-                />
-                <TextField
-                  label="Last Name"
-                  fullWidth
-                  {...register('lastName')}
-                  error={!!errors.lastName}
-                  helperText={errors.lastName?.message}
-                />
-              </Stack>
-              <TextField
-                label="Company / Organization Name"
-                fullWidth
-                {...register('companyName')}
-                error={!!errors.companyName}
-                helperText={errors.companyName?.message}
-                sx={{ mb: 2 }}
-              />
-              <TextField
-                label="Email"
-                type="email"
-                fullWidth
-                {...register('email')}
-                error={!!errors.email}
-                helperText={errors.email?.message}
-                sx={{ mb: 2 }}
-              />
-              <TextField
-                label="Password"
-                type="password"
-                fullWidth
-                {...register('password')}
-                error={!!errors.password}
-                helperText={errors.password?.message}
-                sx={{ mb: 3 }}
-              />
-              <Button 
-                type="submit" 
-                variant="contained" 
-                fullWidth 
-                size="large"
-                sx={{ mb: 3, py: 1.5, fontSize: '1.1rem', borderRadius: 8 }}
-                disabled={isSubmitting}
-              >
-                {isSubmitting ? 'Registering...' : 'Register'}
-              </Button>
-              <Typography variant="body2" align="center" color="text.secondary">
-                Already have an account?{' '}
-                <MuiLink component={Link} to="/login" sx={{ fontWeight: 600 }}>
-                  Sign In
-                </MuiLink>
-              </Typography>
-            </form>
-          </CardContent>
-        </Card>
-      </Box>
-    </Box>
+    <AuthShell title="Create account" subtitle="Takes a few seconds.">
+      <form onSubmit={handleSubmit(onSubmit)} noValidate>
+        <Stack spacing={2}>
+          {error && <Alert severity="error">{error}</Alert>}
+          <Stack direction="row" spacing={2}>
+            <TextField label="First name" autoComplete="given-name" autoFocus fullWidth size="medium" {...register('firstName')} error={!!errors.firstName} helperText={errors.firstName?.message} />
+            <TextField label="Last name" autoComplete="family-name" fullWidth size="medium" {...register('lastName')} error={!!errors.lastName} helperText={errors.lastName?.message} />
+          </Stack>
+          <Stack direction="row" spacing={2}>
+            <TextField label="Company" autoComplete="organization" fullWidth size="medium" {...register('companyName')} error={!!errors.companyName} helperText={errors.companyName?.message} />
+            <TextField select label="Currency" size="medium" value={watch('currency')} onChange={e => setValue('currency', e.target.value)} sx={{ width: 120, flexShrink: 0 }}>
+              {CURRENCIES.map(c => <MenuItem key={c} value={c}>{c}</MenuItem>)}
+            </TextField>
+          </Stack>
+          <TextField label="Email" type="email" autoComplete="email" fullWidth size="medium" {...register('email')} error={!!errors.email} helperText={errors.email?.message} />
+          <TextField label="Password" type="password" autoComplete="new-password" fullWidth size="medium" {...register('password')} error={!!errors.password} helperText={errors.password?.message || 'At least 8 characters'} />
+          <Button type="submit" variant="contained" size="large" fullWidth disabled={isSubmitting}>
+            {isSubmitting ? 'Creating…' : 'Create account'}
+          </Button>
+          <Typography variant="body2" color="text.secondary" align="center">
+            Have an account?{' '}
+            <MuiLink component={Link} to="/login" sx={{ fontWeight: 600 }}>Sign in</MuiLink>
+          </Typography>
+        </Stack>
+      </form>
+    </AuthShell>
   );
 };
 

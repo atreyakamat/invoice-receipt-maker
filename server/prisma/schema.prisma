@@ -295,7 +295,10 @@ model Invoice {
   confidence Decimal @db.Decimal(5,2)
   status InvoiceStatus
   notes String?
+  category String?
   storageUrl String
+  fileName String?
+  mimeType String?
   thumbnailUrl String?
 
   organization Organization @relation(fields:[organizationId], references:[id])

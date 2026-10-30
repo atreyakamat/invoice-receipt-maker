@@ -28,14 +28,14 @@ class ErrorBoundary extends Component<Props, State> {
       return (
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', bgcolor: 'background.default', p: 3 }}>
           <Paper sx={{ p: { xs: 3, md: 5 }, maxWidth: 600, width: '100%', textAlign: 'center', borderRadius: 4 }}>
-            <Typography variant="h4" sx={{ color: 'error.main', mb: 2, fontWeight: 700 }}>
-              Oops, something went wrong.
+            <Typography variant="h4" sx={{ mb: 1, fontWeight: 700 }}>
+              Something went wrong
             </Typography>
             <Typography variant="body1" sx={{ color: 'text.secondary', mb: 4 }}>
-              An unexpected error occurred in the application. We have been notified and are looking into it.
+              Reload to continue.
             </Typography>
             <Button variant="contained" onClick={() => window.location.reload()}>
-              Reload Page
+              Reload
             </Button>
           </Paper>
         </Box>

@@ -12,5 +12,6 @@ router.post('/verify-email', AuthController.verifyEmail);
 router.post('/resend-verification', AuthController.resendVerification);
 router.get('/me', requireAuth, AuthController.getMe);
 router.put('/me', requireAuth, AuthController.updateMe);
+router.put('/me/password', requireAuth, AuthController.changePassword);
 
 export default router;

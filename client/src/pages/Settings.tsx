@@ -1,181 +1,214 @@
-import React, { useState } from 'react';
-import { Box, Typography, Tabs, Tab, Card, CardContent, TextField, Button, Divider, Alert, CircularProgress, Snackbar } from '@mui/material';
+import React, { useEffect } from 'react';
+import { Alert, Box, Button, Card, CardContent, Chip, Grid, MenuItem, TextField, Typography } from '@mui/material';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import AutoAwesomeOutlinedIcon from '@mui/icons-material/AutoAwesomeOutlined';
+import RuleOutlinedIcon from '@mui/icons-material/RuleOutlined';
 import { useAuth } from '../contexts/AuthContext';
-import { apiPrivate } from '../api/axios';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useToast } from '../contexts/ToastContext';
+import { useTour } from '../components/tour/TourContext';
+import { apiPrivate, errorMessage } from '../api/axios';
+import { useMeta } from '../lib/queries';
+import { CURRENCIES } from '../lib/format';
+import PageHeader from '../components/PageHeader';
 
-interface TabPanelProps {
-  children?: React.ReactNode;
-  index: number;
-  value: number;
-}
-
-function CustomTabPanel(props: TabPanelProps) {
-  const { children, value, index, ...other } = props;
-  return (
-    <div role="tabpanel" hidden={value !== index} id={`simple-tabpanel-${index}`} aria-labelledby={`simple-tab-${index}`} {...other}>
-      {value === index && <Box sx={{ p: 3 }}>{children}</Box>}
-    </div>
-  );
-}
+const Section = ({ title, description, children }: { title: string; description?: string; children: React.ReactNode }) => (
+  <Card sx={{ mb: 2.5 }}>
+    <CardContent sx={{ p: { xs: 2.5, sm: 3 } }}>
+      <Grid container spacing={3}>
+        <Grid size={{ xs: 12, md: 4 }}>
+          <Typography variant="h6">{title}</Typography>
+          {description && <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>{description}</Typography>}
+        </Grid>
+        <Grid size={{ xs: 12, md: 8 }}>{children}</Grid>
+      </Grid>
+    </CardContent>
+  </Card>
+);
 
 const profileSchema = z.object({
-  firstName: z.string().min(1, 'First name is required'),
-  lastName: z.string().min(1, 'Last name is required'),
+  firstName: z.string().trim().min(1, 'Required'),
+  lastName: z.string().trim().min(1, 'Required'),
 });
 
 const orgSchema = z.object({
-  companyName: z.string().min(1, 'Company Name is required'),
-  taxId: z.string().optional(),
+  companyName: z.string().trim().min(1, 'Required'),
+  legalName: z.string(),
+  taxId: z.string(),
+  email: z.string().trim().email('Invalid email').or(z.literal('')),
+  phone: z.string(),
+  currency: z.string().length(3),
 });
 
+const passwordSchema = z
+  .object({
+    currentPassword: z.string().min(1, 'Required'),
+    newPassword: z.string().min(8, 'At least 8 characters'),
+    confirm: z.string(),
+  })
+  .refine(d => d.newPassword === d.confirm, { path: ['confirm'], message: 'Passwords do not match' });
+
 const Settings: React.FC = () => {
-  const { user, logout, updateUser } = useAuth();
-  const [value, setValue] = useState(0);
-  const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const { user, updateUser } = useAuth();
+  const toast = useToast();
+  const { start: startTour } = useTour();
+  const queryClient = useQueryClient();
+  const { data: meta } = useMeta();
 
-  const { register: regProfile, handleSubmit: handleProfileSubmit, formState: { errors: profileErrors } } = useForm({
+  const profile = useForm<z.infer<typeof profileSchema>>({
     resolver: zodResolver(profileSchema),
-    defaultValues: {
-      firstName: user?.firstName || '',
-      lastName: user?.lastName || '',
-    }
+    defaultValues: { firstName: user?.firstName || '', lastName: user?.lastName || '' },
+  });
+  const org = useForm<z.infer<typeof orgSchema>>({ resolver: zodResolver(orgSchema) });
+  const password = useForm<z.infer<typeof passwordSchema>>({
+    resolver: zodResolver(passwordSchema),
+    defaultValues: { currentPassword: '', newPassword: '', confirm: '' },
   });
 
-  const { data: orgData, isLoading: orgLoading } = useQuery({
+  const { data: orgData } = useQuery({
     queryKey: ['organization'],
-    queryFn: async () => {
-      const res = await apiPrivate.get('/organization');
-      return res.data;
-    }
+    queryFn: async () => (await apiPrivate.get('/organization')).data,
   });
 
-  const { register: regOrg, handleSubmit: handleOrgSubmit, formState: { errors: orgErrors }, reset: resetOrg } = useForm({
-    resolver: zodResolver(orgSchema),
-  });
-
-  React.useEffect(() => {
+  useEffect(() => {
     if (orgData) {
-      resetOrg({
+      org.reset({
         companyName: orgData.companyName || '',
+        legalName: orgData.legalName || '',
         taxId: orgData.taxId || '',
+        email: orgData.email || '',
+        phone: orgData.phone || '',
+        currency: orgData.currency || 'USD',
       });
     }
-  }, [orgData, resetOrg]);
+  }, [orgData]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const profileMutation = useMutation({
-    mutationFn: async (data: any) => {
-      const res = await apiPrivate.put('/auth/me', data);
-      return res.data;
-    },
-    onSuccess: (data) => {
+  const saveProfile = useMutation({
+    mutationFn: async (data: z.infer<typeof profileSchema>) => (await apiPrivate.put('/auth/me', data)).data,
+    onSuccess: data => {
       updateUser(data);
-      setSuccessMsg('Profile updated successfully');
-    }
-  });
-
-  const orgMutation = useMutation({
-    mutationFn: async (data: any) => {
-      const res = await apiPrivate.put('/organization', data);
-      return res.data;
+      profile.reset(profile.getValues());
+      toast('Profile saved');
     },
-    onSuccess: () => {
-      setSuccessMsg('Organization updated successfully');
-    }
   });
 
-  const onProfileSubmit = (data: any) => profileMutation.mutate(data);
-  const onOrgSubmit = (data: any) => orgMutation.mutate(data);
+  const saveOrg = useMutation({
+    mutationFn: async (data: z.infer<typeof orgSchema>) => (await apiPrivate.put('/organization', data)).data,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['organization'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+      toast('Organization saved');
+    },
+  });
+
+  const savePassword = useMutation({
+    mutationFn: (data: z.infer<typeof passwordSchema>) =>
+      apiPrivate.put('/auth/me/password', { currentPassword: data.currentPassword, newPassword: data.newPassword }),
+    onSuccess: () => {
+      password.reset();
+      toast('Password changed');
+    },
+  });
 
   return (
-    <Box>
-      <Typography variant="h4" sx={{ mb: 4 }}>Settings</Typography>
-      
-      <Box sx={{ width: '100%' }}>
-        <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
-          <Tabs value={value} onChange={(_e, val) => setValue(val)} aria-label="settings tabs">
-            <Tab label="Profile" />
-            <Tab label="Organization" />
-          </Tabs>
+    <Box sx={{ maxWidth: 1000 }}>
+      <PageHeader title="Settings" />
+
+      <Section title="Profile">
+        <Box component="form" onSubmit={profile.handleSubmit(d => saveProfile.mutate(d))}>
+          <Grid container spacing={2}>
+            <Grid size={{ xs: 12, sm: 6 }}>
+              <TextField fullWidth label="First name" {...profile.register('firstName')} error={!!profile.formState.errors.firstName} helperText={profile.formState.errors.firstName?.message} />
+            </Grid>
+            <Grid size={{ xs: 12, sm: 6 }}>
+              <TextField fullWidth label="Last name" {...profile.register('lastName')} error={!!profile.formState.errors.lastName} helperText={profile.formState.errors.lastName?.message} />
+            </Grid>
+            <Grid size={12}>
+              <TextField fullWidth label="Email" value={user?.email || ''} disabled />
+            </Grid>
+          </Grid>
+          {saveProfile.isError && <Alert severity="error" sx={{ mt: 2 }}>{errorMessage(saveProfile.error)}</Alert>}
+          <Button type="submit" variant="contained" sx={{ mt: 2 }} disabled={saveProfile.isPending || !profile.formState.isDirty}>Save</Button>
         </Box>
-        
-        <CustomTabPanel value={value} index={0}>
-          <Card>
-            <CardContent>
-              <Typography variant="h6" gutterBottom>Personal Information</Typography>
-              <Box component="form" onSubmit={handleProfileSubmit(onProfileSubmit)} sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                <Box sx={{ display: 'flex', gap: 3, flexDirection: { xs: 'column', sm: 'row' } }}>
-                  <TextField 
-                    fullWidth 
-                    label="First Name" 
-                    {...regProfile('firstName')}
-                    error={!!profileErrors.firstName}
-                    helperText={profileErrors.firstName?.message as string}
-                  />
-                  <TextField 
-                    fullWidth 
-                    label="Last Name" 
-                    {...regProfile('lastName')}
-                    error={!!profileErrors.lastName}
-                    helperText={profileErrors.lastName?.message as string}
-                  />
-                </Box>
-                <TextField fullWidth label="Email" value={user?.email || ''} disabled />
-                <Box>
-                  <Button type="submit" variant="contained" disabled={profileMutation.isPending}>
-                    {profileMutation.isPending ? 'Saving...' : 'Save Changes'}
-                  </Button>
-                </Box>
-                {profileMutation.isError && <Alert severity="error">Failed to update profile</Alert>}
+      </Section>
+
+      <Section title="Organization" description="Currency is the default for new documents and dashboard totals.">
+        <Box component="form" onSubmit={org.handleSubmit(d => saveOrg.mutate(d))}>
+          <Grid container spacing={2}>
+            <Grid size={{ xs: 12, sm: 6 }}>
+              <TextField fullWidth label="Company name" {...org.register('companyName')} error={!!org.formState.errors.companyName} helperText={org.formState.errors.companyName?.message} slotProps={{ inputLabel: { shrink: true } }} />
+            </Grid>
+            <Grid size={{ xs: 12, sm: 6 }}>
+              <TextField fullWidth label="Legal name" {...org.register('legalName')} slotProps={{ inputLabel: { shrink: true } }} />
+            </Grid>
+            <Grid size={{ xs: 12, sm: 6 }}>
+              <TextField fullWidth label="Tax ID / GSTIN" {...org.register('taxId')} slotProps={{ inputLabel: { shrink: true } }} />
+            </Grid>
+            <Grid size={{ xs: 12, sm: 6 }}>
+              <TextField
+                select
+                fullWidth
+                label="Currency"
+                value={org.watch('currency') || 'USD'}
+                onChange={e => org.setValue('currency', e.target.value, { shouldDirty: true })}
+              >
+                {Array.from(new Set([org.watch('currency') || 'USD', ...CURRENCIES])).map(c => <MenuItem key={c} value={c}>{c}</MenuItem>)}
+              </TextField>
+            </Grid>
+            <Grid size={{ xs: 12, sm: 6 }}>
+              <TextField fullWidth label="Billing email" {...org.register('email')} error={!!org.formState.errors.email} helperText={org.formState.errors.email?.message} slotProps={{ inputLabel: { shrink: true } }} />
+            </Grid>
+            <Grid size={{ xs: 12, sm: 6 }}>
+              <TextField fullWidth label="Phone" {...org.register('phone')} slotProps={{ inputLabel: { shrink: true } }} />
+            </Grid>
+          </Grid>
+          {saveOrg.isError && <Alert severity="error" sx={{ mt: 2 }}>{errorMessage(saveOrg.error)}</Alert>}
+          <Button type="submit" variant="contained" sx={{ mt: 2 }} disabled={saveOrg.isPending || !org.formState.isDirty}>Save</Button>
+        </Box>
+      </Section>
+
+      <Section title="Password">
+        <Box component="form" onSubmit={password.handleSubmit(d => savePassword.mutate(d))}>
+          <Grid container spacing={2}>
+            <Grid size={12}>
+              <TextField fullWidth type="password" label="Current password" autoComplete="current-password" {...password.register('currentPassword')} error={!!password.formState.errors.currentPassword} helperText={password.formState.errors.currentPassword?.message} />
+            </Grid>
+            <Grid size={{ xs: 12, sm: 6 }}>
+              <TextField fullWidth type="password" label="New password" autoComplete="new-password" {...password.register('newPassword')} error={!!password.formState.errors.newPassword} helperText={password.formState.errors.newPassword?.message} />
+            </Grid>
+            <Grid size={{ xs: 12, sm: 6 }}>
+              <TextField fullWidth type="password" label="Confirm" autoComplete="new-password" {...password.register('confirm')} error={!!password.formState.errors.confirm} helperText={password.formState.errors.confirm?.message} />
+            </Grid>
+          </Grid>
+          {savePassword.isError && <Alert severity="error" sx={{ mt: 2 }}>{errorMessage(savePassword.error)}</Alert>}
+          <Button type="submit" variant="contained" sx={{ mt: 2 }} disabled={savePassword.isPending}>Change password</Button>
+        </Box>
+      </Section>
+
+      <Section title="Extraction" description="How fields are read from your documents.">
+        {meta && (
+          <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5 }}>
+            {meta.aiEnabled ? <AutoAwesomeOutlinedIcon color="primary" /> : <RuleOutlinedIcon color="action" />}
+            <Box>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Typography sx={{ fontWeight: 600 }}>{meta.aiEnabled ? 'AI extraction' : 'Rule-based extraction'}</Typography>
+                {meta.aiModel && <Chip size="small" label={meta.aiModel} />}
               </Box>
+              <Typography variant="body2" color="text.secondary">
+                {meta.aiEnabled
+                  ? 'OCR text is sent to the configured model. Line items and categories are detected.'
+                  : 'Runs fully offline. Set AI_API_KEY on the server for line items and higher accuracy.'}
+              </Typography>
+            </Box>
+          </Box>
+        )}
+      </Section>
 
-              <Divider sx={{ my: 4 }} />
-              
-              <Typography variant="h6" color="error" gutterBottom>Danger Zone</Typography>
-              <Button variant="outlined" color="error" onClick={logout}>Sign Out</Button>
-            </CardContent>
-          </Card>
-        </CustomTabPanel>
-        
-        <CustomTabPanel value={value} index={1}>
-          <Card>
-            <CardContent>
-              <Typography variant="h6" gutterBottom>Organization Details</Typography>
-              {orgLoading ? <CircularProgress /> : (
-                <Box component="form" onSubmit={handleOrgSubmit(onOrgSubmit)} sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                  <Box sx={{ display: 'flex', gap: 3, flexDirection: { xs: 'column', sm: 'row' } }}>
-                    <TextField 
-                      fullWidth 
-                      label="Company Name" 
-                      {...regOrg('companyName')}
-                      error={!!orgErrors.companyName}
-                      helperText={orgErrors.companyName?.message as string}
-                    />
-                    <TextField 
-                      fullWidth 
-                      label="Tax ID / GST" 
-                      {...regOrg('taxId')}
-                    />
-                  </Box>
-                  <Box>
-                    <Button type="submit" variant="contained" disabled={orgMutation.isPending}>
-                      {orgMutation.isPending ? 'Updating...' : 'Update Organization'}
-                    </Button>
-                  </Box>
-                  {orgMutation.isError && <Alert severity="error">Failed to update organization</Alert>}
-                </Box>
-              )}
-            </CardContent>
-          </Card>
-        </CustomTabPanel>
-      </Box>
-
-      <Snackbar open={!!successMsg} autoHideDuration={6000} onClose={() => setSuccessMsg(null)}>
-        <Alert severity="success" onClose={() => setSuccessMsg(null)}>{successMsg}</Alert>
-      </Snackbar>
+      <Section title="Product tour">
+        <Button variant="outlined" onClick={startTour}>Replay tour</Button>
+      </Section>
     </Box>
   );
 };

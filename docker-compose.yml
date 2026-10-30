@@ -1,42 +1,42 @@
 services:
-  postgres:
-    image: postgres:16-alpine
-    container_name: invoice-receipt-maker-postgres
+  app:
+    build: .
+    image: invoicemaker:latest
+    container_name: invoicemaker
+    restart: unless-stopped
+    ports:
+      - "${APP_PORT:-3000}:3000"
     environment:
-      POSTGRES_USER: admin
-      POSTGRES_PASSWORD: adminpassword
-      POSTGRES_DB: invoice_db
-    ports:
-      - "5432:5432"
+      DATABASE_URL: postgresql://invoicemaker:${POSTGRES_PASSWORD:-invoicemaker}@db:5432/invoicemaker?schema=public
+      # Optional. Without a key, extraction is rule-based and fully offline.
+      AI_API_KEY: ${AI_API_KEY:-}
+      AI_BASE_URL: ${AI_BASE_URL:-https://openrouter.ai/api/v1}
+      AI_MODEL: ${AI_MODEL:-google/gemini-2.5-flash}
+      # Optional. Generated once and stored in the data volume when empty.
+      JWT_SECRET: ${JWT_SECRET:-}
+      REFRESH_SECRET: ${REFRESH_SECRET:-}
     volumes:
-      - postgres-data:/var/lib/postgresql/data
-    networks:
-      - backend-network
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U admin -d invoice_db"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
+      - app-data:/data
+    depends_on:
+      db:
+        condition: service_healthy
 
-  redis:
-    image: redis:7-alpine
-    container_name: invoice-receipt-maker-redis
-    ports:
-      - "6379:6379"
+  db:
+    image: postgres:16-alpine
+    container_name: invoicemaker-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: invoicemaker
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-invoicemaker}
+      POSTGRES_DB: invoicemaker
     volumes:
-      - redis-data:/data
-    networks:
-      - backend-network
+      - db-data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD-SHELL", "pg_isready -U invoicemaker -d invoicemaker"]
       interval: 5s
       timeout: 5s
-      retries: 5
+      retries: 10
 
 volumes:
-  postgres-data:
-  redis-data:
-
-networks:
-  backend-network:
-    driver: bridge
+  app-data:
+  db-data:

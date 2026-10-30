@@ -106,5 +106,8 @@ dist
 .DS_Store
 Thumbs.db
 
-# Lock files
-package-lock.json
+# App data (uploads, generated secrets, OCR cache)
+data/
+
+# Built client copied into the server image
+server/public/

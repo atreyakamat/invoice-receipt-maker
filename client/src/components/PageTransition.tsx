@@ -5,18 +5,17 @@ import { Box } from '@mui/material';
 
 const PageTransition: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const location = useLocation();
-  
+
   return (
-    <AnimatePresence mode="wait">
+    <AnimatePresence mode="wait" initial={false}>
       <motion.div
         key={location.pathname}
-        initial={{ opacity: 0, y: 15 }}
+        initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: -15 }}
-        transition={{ duration: 0.3, ease: 'easeOut' }}
-        style={{ width: '100%', height: '100%' }}
+        exit={{ opacity: 0, y: -4 }}
+        transition={{ duration: 0.18, ease: 'easeOut' }}
       >
-        <Box sx={{ p: { xs: 2, md: 4 }, maxWidth: 1400, mx: 'auto' }}>
+        <Box sx={{ px: { xs: 2, sm: 3, md: 4 }, py: { xs: 2.5, md: 4 }, maxWidth: 1360, mx: 'auto' }}>
           {children}
         </Box>
       </motion.div>

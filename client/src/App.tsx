@@ -1,66 +1,83 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { lazy, Suspense } from 'react';
+import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
+import { QueryClientProvider } from '@tanstack/react-query';
 import { ThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
+import LinearProgress from '@mui/material/LinearProgress';
 import theme from './theme';
+import { queryClient } from './queryClient';
 import Layout from './components/Layout';
-import Dashboard from './pages/Dashboard';
-import Invoices from './pages/Invoices';
-import InvoiceValidation from './pages/InvoiceValidation';
-import Reports from './pages/Reports';
-import Settings from './pages/Settings';
-import Vendors from './pages/Vendors';
-import VerifyEmail from './pages/VerifyEmail';
-import AdminLayout from './layouts/AdminLayout';
-import AdminDashboard from './pages/admin/AdminDashboard';
-import AdminOrganizations from './pages/admin/Organizations';
-import AdminUsers from './pages/admin/Users';
 import Login from './pages/Login';
 import Register from './pages/Register';
-import LandingPage from './pages/LandingPage';
 import NotFound from './pages/NotFound';
 import { AuthProvider } from './contexts/AuthContext';
+import { ToastProvider } from './contexts/ToastContext';
+import { UploadProvider } from './contexts/UploadContext';
+import { TourProvider } from './components/tour/TourContext';
 import ProtectedRoute from './components/ProtectedRoute';
 
-const queryClient = new QueryClient();
+const Dashboard = lazy(() => import('./pages/Dashboard'));
+const Invoices = lazy(() => import('./pages/Invoices'));
+const InvoiceReview = lazy(() => import('./pages/InvoiceReview'));
+const Exports = lazy(() => import('./pages/Exports'));
+const Settings = lazy(() => import('./pages/Settings'));
+const Vendors = lazy(() => import('./pages/Vendors'));
+const VerifyEmail = lazy(() => import('./pages/VerifyEmail'));
+const AdminLayout = lazy(() => import('./layouts/AdminLayout'));
+const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard'));
+const AdminOrganizations = lazy(() => import('./pages/admin/Organizations'));
+const AdminUsers = lazy(() => import('./pages/admin/Users'));
+
+const AppProviders = () => (
+  <UploadProvider>
+    <TourProvider>
+      <Outlet />
+    </TourProvider>
+  </UploadProvider>
+);
 
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <ThemeProvider theme={theme}>
-        <CssBaseline />
-        <AuthProvider>
-          <BrowserRouter>
-            <Routes>
-              {/* Public Routes */}
-              <Route path="/" element={<LandingPage />} />
-              <Route path="/login" element={<Login />} />
-              <Route path="/register" element={<Register />} />
-              <Route path="/verify-email" element={<VerifyEmail />} />
+      <ThemeProvider theme={theme} defaultMode="system">
+        <CssBaseline enableColorScheme />
+        <ToastProvider>
+          <AuthProvider>
+            <BrowserRouter>
+              <Suspense fallback={<LinearProgress sx={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 2000 }} />}>
+                <Routes>
+                  <Route path="/" element={<Navigate to="/dashboard" replace />} />
+                  <Route path="/login" element={<Login />} />
+                  <Route path="/register" element={<Register />} />
+                  <Route path="/verify-email" element={<VerifyEmail />} />
 
-              {/* Protected Routes */}
-              <Route element={<ProtectedRoute />}>
-                <Route element={<Layout />}>
-                  <Route path="/dashboard" element={<Dashboard />} />
-                  <Route path="/invoices" element={<Invoices />} />
-                  <Route path="/invoices/:id/validate" element={<InvoiceValidation />} />
-                  <Route path="/vendors" element={<Vendors />} />
-                  <Route path="/reports" element={<Reports />} />
-                  <Route path="/settings" element={<Settings />} />
-                </Route>
+                  <Route element={<ProtectedRoute />}>
+                    <Route element={<AppProviders />}>
+                      <Route element={<Layout />}>
+                        <Route path="/dashboard" element={<Dashboard />} />
+                        <Route path="/invoices" element={<Invoices />} />
+                        <Route path="/invoices/:id" element={<InvoiceReview />} />
+                        <Route path="/invoices/:id/validate" element={<InvoiceReview />} />
+                        <Route path="/vendors" element={<Vendors />} />
+                        <Route path="/exports" element={<Exports />} />
+                        <Route path="/reports" element={<Navigate to="/exports" replace />} />
+                        <Route path="/settings" element={<Settings />} />
+                      </Route>
+                    </Route>
 
-                {/* Admin Routes */}
-                <Route path="/admin" element={<AdminLayout />}>
-                  <Route index element={<AdminDashboard />} />
-                  <Route path="organizations" element={<AdminOrganizations />} />
-                  <Route path="users" element={<AdminUsers />} />
-                </Route>
-              </Route>
+                    <Route path="/admin" element={<AdminLayout />}>
+                      <Route index element={<AdminDashboard />} />
+                      <Route path="organizations" element={<AdminOrganizations />} />
+                      <Route path="users" element={<AdminUsers />} />
+                    </Route>
+                  </Route>
 
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </BrowserRouter>
-        </AuthProvider>
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+              </Suspense>
+            </BrowserRouter>
+          </AuthProvider>
+        </ToastProvider>
       </ThemeProvider>
     </QueryClientProvider>
   );

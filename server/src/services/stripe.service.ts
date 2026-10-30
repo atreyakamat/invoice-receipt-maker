@@ -2,9 +2,7 @@ import Stripe from 'stripe';
 import prisma from '../utils/prisma';
 import { SubscriptionPlan, SubscriptionStatus, BillingCycle } from '@prisma/client';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_mock_123', {
-  apiVersion: '2026-06-24.dahlia',
-});
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_mock_123');
 
 export class StripeService {
   static async createCustomer(email: string, name: string) {

@@ -4,19 +4,21 @@ import jwt from 'jsonwebtoken';
 import { EmailService } from './email.service';
 import { v4 as uuidv4 } from 'uuid';
 import { UserRole } from '@prisma/client';
+import { config } from '../config';
+import { HttpError } from '../utils/httpError';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'super-secret-jwt-key';
-const REFRESH_SECRET = process.env.REFRESH_SECRET || 'super-secret-refresh-key';
+const JWT_SECRET = config.jwtSecret;
+const REFRESH_SECRET = config.refreshSecret;
 const ACCESS_TOKEN_EXPIRES_IN = '15m'; // 15 minutes
 const REFRESH_TOKEN_EXPIRES_IN = '7d'; // 7 days
 
 export class AuthService {
   static async register(data: any) {
-    const { firstName, lastName, email, password, companyName } = data;
+    const { firstName, lastName, email, password, companyName, currency } = data;
 
     const existingUser = await prisma.user.findUnique({ where: { email } });
     if (existingUser) {
-      throw new Error('Email already in use');
+      throw new HttpError(409, 'An account with this email already exists');
     }
 
     const passwordHash = await argon2.hash(password);
@@ -27,7 +29,7 @@ export class AuthService {
         data: {
           companyName,
           email,
-          currency: 'USD',
+          currency: currency || 'USD',
           timezone: 'UTC',
           status: 'ACTIVE',
         }
@@ -94,13 +96,13 @@ export class AuthService {
 
   static async login(email: string, password: string) {
     const user = await prisma.user.findUnique({ where: { email } });
-    if (!user) {
-      throw new Error('Invalid credentials');
+    if (!user || user.deletedAt) {
+      throw new HttpError(401, 'Incorrect email or password');
     }
 
     const isValid = await argon2.verify(user.passwordHash, password);
     if (!isValid) {
-      throw new Error('Invalid credentials');
+      throw new HttpError(401, 'Incorrect email or password');
     }
 
     // if (!user.emailVerified) {
@@ -181,7 +183,7 @@ export class AuthService {
         refreshToken: newRefreshToken,
       };
     } catch (error) {
-      throw new Error('Invalid refresh token');
+      throw new HttpError(401, 'Session expired');
     }
   }
 
@@ -197,14 +199,14 @@ export class AuthService {
       });
       return true;
     } catch (err) {
-      throw { status: 400, message: 'Invalid or expired verification token' };
+      throw new HttpError(400, 'Invalid or expired verification token');
     }
   }
 
   static async resendVerification(email: string) {
     const user = await prisma.user.findUnique({ where: { email } });
-    if (!user) throw new Error('User not found');
-    if (user.emailVerified) throw { status: 400, message: 'Email already verified' };
+    if (!user) throw new HttpError(404, 'User not found');
+    if (user.emailVerified) throw new HttpError(400, 'Email already verified');
 
     const verificationToken = jwt.sign(
       { email: user.email },
@@ -212,6 +214,15 @@ export class AuthService {
       { expiresIn: '24h' }
     );
     await EmailService.sendVerificationEmail(user.email, verificationToken);
+  }
+
+  static async changePassword(userId: string, currentPassword: string, newPassword: string) {
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new HttpError(404, 'User not found');
+    if (!(await argon2.verify(user.passwordHash, currentPassword))) {
+      throw new HttpError(400, 'Current password is incorrect');
+    }
+    await prisma.user.update({ where: { id: userId }, data: { passwordHash: await argon2.hash(newPassword) } });
   }
 
   private static generateAccessToken(userId: string, role: string, organizationId: string) {
