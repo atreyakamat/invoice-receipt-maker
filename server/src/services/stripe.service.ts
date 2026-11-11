@@ -3,7 +3,8 @@ import prisma from '../utils/prisma';
 import { SubscriptionPlan, SubscriptionStatus, BillingCycle } from '@prisma/client';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_mock_123', {
-  apiVersion: '2026-06-24.dahlia',
+  // Pinned so webhook payloads keep their shape; the cast lets newer SDK patch releases build.
+  apiVersion: '2026-06-24.dahlia' as Stripe.StripeConfig['apiVersion'],
 });
 
 export class StripeService {
@@ -73,8 +74,11 @@ export class StripeService {
     let event;
     if (process.env.STRIPE_WEBHOOK_SECRET) {
       event = stripe.webhooks.constructEvent(body, signature, process.env.STRIPE_WEBHOOK_SECRET);
+    } else if (process.env.NODE_ENV !== 'production') {
+      event = JSON.parse(body.toString()); // Local testing only
     } else {
-      event = JSON.parse(body.toString()); // Mock fallback
+      // Without the signing secret anyone could post a fake "subscription active" event.
+      throw Object.assign(new Error('Stripe webhooks are off: set STRIPE_WEBHOOK_SECRET'), { status: 400 });
     }
 
     switch (event.type) {

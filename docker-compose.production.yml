@@ -1,43 +1,64 @@
-version: '3.8'
-
+# Production stack: API + web app, PostgreSQL, Redis.
+#   Secrets come from an env file (House of Stix: ~/stix/env/receipts.env, made by
+#   "stixctl bootstrap"; by hand: cp .env.example .env and fill it in).
+#   docker compose -f docker-compose.production.yml --env-file .env up -d --build
 services:
   api:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: invoice-receipt-maker-api
-    restart: always
+    restart: unless-stopped
     environment:
-      - NODE_ENV=production
-      - DATABASE_URL=postgresql://admin:adminpassword@postgres:5432/invoice_db?schema=public
-      - REDIS_URL=redis://redis:6379
-      - JWT_SECRET=${JWT_SECRET}
-      - REFRESH_SECRET=${REFRESH_SECRET}
-      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      NODE_ENV: production
+      DATABASE_URL: postgresql://receipts:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@postgres:5432/invoice_db?schema=public
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET (32+ random characters)}
+      REFRESH_SECRET: ${REFRESH_SECRET:?set REFRESH_SECRET (32+ random characters)}
+      NVIDIA_API_KEY: ${NVIDIA_API_KEY:-}
+      # Address of the web app as the browser sees it (used in emailed links).
+      CLIENT_URL: ${CLIENT_URL:-http://localhost:3000}
+      # House of Stix control room, so the app opens in its window.
+      CONTROL_ROOM_ORIGIN: ${CONTROL_ROOM_ORIGIN:-}
+      # Optional: inbound email (SendGrid Inbound Parse) and Stripe billing stay off until set.
+      INBOUND_TOKEN: ${INBOUND_TOKEN:-}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
     ports:
       - "3000:3000"
+    volumes:
+      - uploads:/app/uploads
     depends_on:
-      - postgres
-      - redis
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    mem_limit: 768m
+    security_opt:
+      - no-new-privileges:true
 
   postgres:
     image: postgres:16-alpine
-    container_name: invoice-receipt-maker-postgres-prod
-    restart: always
+    restart: unless-stopped
     environment:
-      POSTGRES_USER: admin
-      POSTGRES_PASSWORD: adminpassword
+      POSTGRES_USER: receipts
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
       POSTGRES_DB: invoice_db
     volumes:
       - postgres-data-prod:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U receipts -d invoice_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
 
   redis:
     image: redis:7-alpine
-    container_name: invoice-receipt-maker-redis-prod
-    restart: always
+    restart: unless-stopped
+    command: ["redis-server", "--save", "60", "1", "--appendonly", "no"]
     volumes:
       - redis-data-prod:/data
 
 volumes:
   postgres-data-prod:
   redis-data-prod:
+  uploads:

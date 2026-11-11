@@ -1,12 +1,13 @@
 import prisma from '../utils/prisma';
 import argon2 from 'argon2';
 import jwt from 'jsonwebtoken';
+import { requireSecret } from '../utils/secrets';
 import { EmailService } from './email.service';
 import { v4 as uuidv4 } from 'uuid';
 import { UserRole } from '@prisma/client';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'super-secret-jwt-key';
-const REFRESH_SECRET = process.env.REFRESH_SECRET || 'super-secret-refresh-key';
+const JWT_SECRET = requireSecret('JWT_SECRET');
+const REFRESH_SECRET = requireSecret('REFRESH_SECRET');
 const ACCESS_TOKEN_EXPIRES_IN = '15m'; // 15 minutes
 const REFRESH_TOKEN_EXPIRES_IN = '7d'; // 7 days
 

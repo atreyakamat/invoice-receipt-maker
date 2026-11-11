@@ -1,6 +1,6 @@
 import React, { useRef } from 'react';
-import { Box, Typography, Button, Container, Stack, Grid, Card, CardContent, useTheme, alpha } from '@mui/material';
-import { motion, useScroll, useTransform, useSpring, useMotionValue } from 'framer-motion';
+import { Box, Typography, Button, Container, Stack, Grid, Card, CardContent, alpha } from '@mui/material';
+import { motion, useTransform, useSpring, useMotionValue, type Variants } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
@@ -12,12 +12,12 @@ import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import DocumentScannerIcon from '@mui/icons-material/DocumentScanner';
 
 // Framer Motion Variants
-const fadeInUp = {
+const fadeInUp: Variants = {
   hidden: { opacity: 0, y: 40 },
   visible: { opacity: 1, y: 0, transition: { duration: 0.8, ease: [0.22, 1, 0.36, 1] } }
 };
 
-const staggerContainer = {
+const staggerContainer: Variants = {
   hidden: { opacity: 0 },
   visible: {
     opacity: 1,
@@ -25,7 +25,7 @@ const staggerContainer = {
   }
 };
 
-const scaleIn = {
+const scaleIn: Variants = {
   hidden: { opacity: 0, scale: 0.9 },
   visible: { opacity: 1, scale: 1, transition: { duration: 0.8, ease: [0.22, 1, 0.36, 1] } }
 };
